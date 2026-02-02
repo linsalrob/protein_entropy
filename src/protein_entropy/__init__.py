@@ -8,7 +8,8 @@ This package provides tools to:
 """
 
 import importlib.metadata
-import logging
+
+from .logging_config import get_logger
 
 # Get version from package metadata
 try:
@@ -17,6 +18,6 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0.dev0"
 
 # Set up package-level logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["__version__"]

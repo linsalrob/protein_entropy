@@ -3,53 +3,30 @@ Command-line interface for protein_entropy.
 """
 
 import argparse
-import logging
 import sys
 import traceback
 from typing import Optional
 
 from . import __version__
+from .logging_config import configure_logging, get_logger
 
 
 def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> None:
     """
-    Configure logging.
+    Configure logging using centralized logging configuration.
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional log file path (if None, logs to stdout)
     """
-    level = getattr(logging, log_level.upper(), logging.INFO)
-
-    # Configure root logger
-    handlers = []
-
-    if log_file:
-        # File handler
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        handlers.append(file_handler)
-    else:
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-        handlers.append(console_handler)
-
-    logging.basicConfig(
-        level=level,
-        handlers=handlers,
-        force=True,
-        format="%(asctime)s %(levelname)s %(name)s\n%(message)s"
-    )
+    configure_logging(level=log_level, log_file=log_file)
 
 
 def cmd_download(args) -> int:
     """Download models and assets."""
     from .downloader import AVAILABLE_MODELS, download_model, list_downloaded_models
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
     logger.info(f"RUNNING: download command")
 
     if args.list:
@@ -98,7 +75,7 @@ def cmd_encode3di(args) -> int:
     from .encoder import encode_sequences
     from .fasta_utils import read_fasta, write_fasta
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     logger.info(f"RUNNING: encode3di command")
     logger.info(f"Reading input from: {args.input}")
@@ -153,7 +130,7 @@ def cmd_entropy(args) -> int:
     from .entropy import calculate_batch_entropy
     from .fasta_utils import read_fasta, write_tsv
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     logger.info(f"RUNNING: entropy command")
     logger.info(f"Reading protein sequences from: {args.protein}")
@@ -229,7 +206,7 @@ def cmd_run(args) -> int:
     from .entropy import calculate_batch_entropy
     from .fasta_utils import read_fasta, write_fasta, write_tsv
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     logger.info(f"RUNNING: run command")
     logger.info("Running complete pipeline")
@@ -575,7 +552,7 @@ def main() -> int:
         print("\nInterrupted by user", file=sys.stderr)
         return 130
     except Exception as e:
-        logging.getLogger(__name__).error(f"Unexpected error: {e}", exc_info=True)
+        get_logger(__name__).error(f"Unexpected error: {e}", exc_info=True)
         return 1
 
 
