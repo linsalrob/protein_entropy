@@ -312,7 +312,38 @@ class ModernProstEncoder:
         # Get predictions for all sequences
         with torch.no_grad():
             outputs = self.model(**inputs)
-            logits = outputs.logits
+
+            # Handle different model output structures
+            # Some models return ModelOutput with .logits attribute
+            # Others return tuples or tensors directly
+            if hasattr(outputs, "logits") and outputs.logits is not None:
+                logits = outputs.logits
+                logger.debug("Using outputs.logits")
+            elif isinstance(outputs, tuple) and len(outputs) > 0:
+                logits = outputs[0]
+                logger.debug("Using outputs[0] from tuple")
+            elif isinstance(outputs, torch.Tensor):
+                logits = outputs
+                logger.debug("Using direct tensor output")
+            else:
+                # Provide detailed error information
+                output_attrs = [attr for attr in dir(outputs) if not attr.startswith("_")]
+                logger.error(f"Unexpected model output type: {type(outputs)}")
+                logger.error(f"Output attributes: {output_attrs}")
+
+                # Check if outputs has other common attributes
+                for attr_name in ["last_hidden_state", "hidden_states", "pooler_output"]:
+                    if hasattr(outputs, attr_name):
+                        attr_val = getattr(outputs, attr_name)
+                        logger.error(
+                            f"  {attr_name}: {type(attr_val)}, shape: {attr_val.shape if hasattr(attr_val, 'shape') else 'N/A'}"
+                        )
+
+                raise ValueError(
+                    f"Model output does not contain logits or recognizable structure. "
+                    f"Output type: {type(outputs)}, "
+                    f"Available attributes: {output_attrs}"
+                )
 
         # Get predicted token IDs
         predicted_token_ids = torch.argmax(logits, dim=-1)
