@@ -40,6 +40,7 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> No
         level=level,
         handlers=handlers,
         force=True,
+        format="%(asctime)s %(levelname)s %(name)s\n%(message)s"
     )
 
 
@@ -128,8 +129,8 @@ def cmd_encode3di(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.exception(f"Encoding failed")
-        return 1
+        logger.exception(f"Encoding failed", exc_info=True)
+        raise
 
     # Write output
     output_data = list(zip(seq_ids, encoded))
@@ -242,8 +243,8 @@ def cmd_run(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.exception(f"Encoding failed")
-        return 1
+        logger.exception(f"Encoding failed", exc_info=True)
+        raise
 
     # Step 3: Calculate entropies
     logger.info("Calculating entropies")
