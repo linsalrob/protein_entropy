@@ -314,6 +314,9 @@ class ModernProstEncoder:
         # Add spaces between amino acids for all sequences
         spaced_sequences = [" ".join(list(seq)) for seq in sequences]
 
+        if not self.tokenizer:
+            raise Exception("self.tokenizer is None type")
+
         # Tokenize all sequences at once with padding
         inputs = self.tokenizer(
             spaced_sequences,
