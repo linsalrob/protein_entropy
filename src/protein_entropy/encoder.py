@@ -369,10 +369,6 @@ class ModernProstEncoder:
         logger.debug(f"Processing {len(spaced_sequences)} valid sequences")
         logger.debug(f"Sample spaced sequences (first 3):\n{spaced_sequences[:3]}")
         
-        for k, v in vars(self).items():
-            logger.debug("self.%s = %r", k, v)
-
-
         # Tokenize all sequences at once with padding
         try:
             logger.debug("INPUTS")
@@ -384,7 +380,6 @@ class ModernProstEncoder:
                 add_special_tokens=False,
             )
 
-            logger.debug("TOKENIZATION passed")
 
             # Validate tokenizer outputs
             logger.debug(f"Tokenizer output keys: {inputs.keys()}")
