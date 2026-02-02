@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 # Available models
 AVAILABLE_MODELS = {
     "prostt5_fp16": "Rostlab/ProstT5_fp16",
-    "modernprost": "gbouras13/modernprost-profiles",
+    "modernprost": "gbouras13/modernprost-base",
+    "modernprost_base": "gbouras13/modernprost-base",
+    "modernprost_profiles": "gbouras13/modernprost-profiles",
 }
 
 
@@ -49,7 +51,7 @@ def download_model(
     Download a model from HuggingFace Hub.
 
     Args:
-        model_name: Name of the model to download (prostt5_fp16 or modernprost)
+        model_name: Name of the model to download (prostt5_fp16, modernprost, modernprost_base, or modernprost_profiles)
         cache_dir: Optional cache directory path
         force_download: Force re-download even if cached
 

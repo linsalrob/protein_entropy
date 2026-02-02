@@ -321,7 +321,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_download.add_argument(
         "model",
-        choices=["prostt5_fp16", "modernprost", "all"],
+        choices=["prostt5_fp16", "modernprost", "modernprost_base", "modernprost_profiles", "all"],
         help="Model to download",
     )
     parser_download.add_argument(
@@ -364,7 +364,13 @@ def create_parser() -> argparse.ArgumentParser:
         "-m",
         "--model",
         default="prostt5",
-        choices=["prostt5", "prostt5_fp16", "modernprost"],
+        choices=[
+            "prostt5",
+            "prostt5_fp16",
+            "modernprost",
+            "modernprost_base",
+            "modernprost_profiles",
+        ],
         help="Model to use for encoding (default: prostt5)",
     )
     parser_encode.add_argument(
@@ -437,7 +443,13 @@ def create_parser() -> argparse.ArgumentParser:
         "-m",
         "--model",
         default="prostt5",
-        choices=["prostt5", "prostt5_fp16", "modernprost"],
+        choices=[
+            "prostt5",
+            "prostt5_fp16",
+            "modernprost",
+            "modernprost_base",
+            "modernprost_profiles",
+        ],
         help="Model to use for encoding (default: prostt5)",
     )
     parser_run.add_argument(
@@ -468,7 +480,13 @@ def create_parser() -> argparse.ArgumentParser:
         "-m",
         "--model",
         default="prostt5",
-        choices=["prostt5", "prostt5_fp16", "modernprost"],
+        choices=[
+            "prostt5",
+            "prostt5_fp16",
+            "modernprost",
+            "modernprost_base",
+            "modernprost_profiles",
+        ],
         help="Model to test (default: prostt5)",
     )
     parser_estimate.add_argument(

@@ -193,7 +193,8 @@ class ProstT5Encoder:
 
 class ModernProstEncoder:
     """
-    Encoder using modernprost-profiles model (George's implementation).
+    Encoder using modernprost-base model (George's implementation).
+    Can also use modernprost-profiles as an alternate option.
 
     This is adapted from:
     https://github.com/gbouras13/phold/blob/42e345c49f7768b2d79ddfc625e6dafa558aff75/src/phold/features/predict_3Di.py#L793-L916
@@ -218,7 +219,7 @@ class ModernProstEncoder:
             import torch  # noqa: F401
             from transformers import AutoConfig, AutoModelForMaskedLM, AutoTokenizer
 
-            model_name = model_path if model_path else "gbouras13/modernprost-profiles"
+            model_name = model_path if model_path else "gbouras13/modernprost-base"
 
             logger.info(f"Loading ModernProst model from {model_name}")
 
@@ -347,7 +348,7 @@ def encode_sequences(
 
     Args:
         sequences: List of protein sequences
-        model_type: Model to use ('prostt5' or 'modernprost')
+        model_type: Model to use ('prostt5', 'prostt5_fp16', 'modernprost', 'modernprost_base', or 'modernprost_profiles')
         model_path: Optional path to model
         device: Device to use (auto-detected if None)
         batch_size: Maximum tokens per batch
@@ -363,7 +364,13 @@ def encode_sequences(
     # Select encoder
     if model_type.lower() in ["prostt5", "prostt5_fp16"]:
         encoder = ProstT5Encoder(model_path=model_path, device=device)
-    elif model_type.lower() in ["modernprost", "modernprost-profiles"]:
+    elif model_type.lower() in [
+        "modernprost",
+        "modernprost-profiles",
+        "modernprost_profiles",
+        "modernprost-base",
+        "modernprost_base",
+    ]:
         encoder = ModernProstEncoder(model_path=model_path, device=device)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
