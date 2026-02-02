@@ -34,7 +34,8 @@ def test_log_level_option():
     from protein_entropy.cli import create_parser
 
     parser = create_parser()
-    args = parser.parse_args(["--log-level", "DEBUG", "download", "prostt5_fp16"])
+    # Log level arguments must come after the subcommand
+    args = parser.parse_args(["download", "prostt5_fp16", "--log-level", "DEBUG"])
 
     assert args.log_level == "DEBUG"
 

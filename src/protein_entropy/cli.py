@@ -299,14 +299,16 @@ def create_parser() -> argparse.ArgumentParser:
         version=f"%(prog)s {__version__}",
     )
 
-    parser.add_argument(
+    # Create a parent parser for shared arguments that can be used after subcommands
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set logging level (default: INFO)",
     )
 
-    parser.add_argument(
+    parent_parser.add_argument(
         "--log-file",
         type=str,
         help="Write logs to file instead of stdout",
@@ -318,6 +320,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_download = subparsers.add_parser(
         "download",
         help="Download models and assets",
+        parents=[parent_parser],
     )
     parser_download.add_argument(
         "model",
@@ -345,6 +348,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_encode = subparsers.add_parser(
         "encode3di",
         help="Encode proteins to 3Di",
+        parents=[parent_parser],
     )
     parser_encode.add_argument(
         "-i",
@@ -396,6 +400,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_entropy = subparsers.add_parser(
         "entropy",
         help="Calculate entropy for sequences",
+        parents=[parent_parser],
     )
     parser_entropy.add_argument(
         "-p",
@@ -424,6 +429,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_run = subparsers.add_parser(
         "run",
         help="Run complete pipeline (encode + entropy)",
+        parents=[parent_parser],
     )
     parser_run.add_argument(
         "-i",
@@ -475,6 +481,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser_estimate = subparsers.add_parser(
         "estimate",
         help="Estimate optimal GPU batch size",
+        parents=[parent_parser],
     )
     parser_estimate.add_argument(
         "-m",
@@ -534,13 +541,16 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
-    # Setup logging
-    setup_logging(args.log_level, args.log_file)
-
     # Check if command was provided
     if not args.command:
         parser.print_help()
         return 1
+
+    # Setup logging
+    # Note: log_level is available either from global args or subcommand args
+    log_level = getattr(args, "log_level", "INFO")
+    log_file = getattr(args, "log_file", None)
+    setup_logging(log_level, log_file)
 
     # Run command
     try:
