@@ -216,14 +216,19 @@ class ModernProstEncoder:
         """Load the model and tokenizer."""
         try:
             import torch  # noqa: F401
-            from transformers import AutoModelForMaskedLM, AutoTokenizer
+            from transformers import AutoConfig, AutoModelForMaskedLM, AutoTokenizer
 
             model_name = model_path if model_path else "gbouras13/modernprost-profiles"
 
             logger.info(f"Loading ModernProst model from {model_name}")
 
+            # Load config first with trust_remote_code to handle custom configurations
+            config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+
             self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            self.model = AutoModelForMaskedLM.from_pretrained(model_name, trust_remote_code=True)
+            self.model = AutoModelForMaskedLM.from_pretrained(
+                model_name, config=config, trust_remote_code=True
+            )
 
             # Move to device
             if self.device != "cpu":
