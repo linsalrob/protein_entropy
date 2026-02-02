@@ -2,6 +2,7 @@
 Tests for encoder module (with mocked models).
 """
 
+import importlib.util
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -33,10 +34,6 @@ def test_token_budget_batches_empty():
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(
-    not pytest.config.getoption("--run-integration", default=False),
-    reason="Integration test - run with --run-integration"
-)
 def test_prostt5_encoder_integration():
     """
     Integration test for ProstT5 encoder.
@@ -56,12 +53,17 @@ def test_prostt5_encoder_integration():
     assert all(c.islower() for c in encoded[0])
 
 
+@pytest.mark.skipif(
+    not importlib.util.find_spec("torch"),
+    reason="PyTorch not installed"
+)
 def test_prostt5_encoder_mock():
     """Test ProstT5 encoder with mocked model."""
     from protein_entropy.encoder import ProstT5Encoder
+    import torch
     
-    with patch("protein_entropy.encoder.T5EncoderModel") as mock_model_class, \
-         patch("protein_entropy.encoder.T5Tokenizer") as mock_tokenizer_class:
+    with patch("transformers.T5EncoderModel") as mock_model_class, \
+         patch("transformers.T5Tokenizer") as mock_tokenizer_class:
         
         # Mock tokenizer
         mock_tokenizer = Mock()
@@ -78,7 +80,6 @@ def test_prostt5_encoder_mock():
         mock_model.to.return_value = mock_model
         
         # Mock output
-        import torch
         mock_output = Mock()
         mock_output.last_hidden_state = torch.randn(1, 10, 768)
         mock_model.return_value = mock_output
@@ -91,12 +92,16 @@ def test_prostt5_encoder_mock():
         assert encoder.tokenizer is not None
 
 
+@pytest.mark.skipif(
+    not importlib.util.find_spec("torch"),
+    reason="PyTorch not installed"
+)
 def test_modernprost_encoder_mock():
     """Test ModernProst encoder with mocked model."""
     from protein_entropy.encoder import ModernProstEncoder
     
-    with patch("protein_entropy.encoder.AutoTokenizer") as mock_tokenizer_class, \
-         patch("protein_entropy.encoder.AutoModelForMaskedLM") as mock_model_class:
+    with patch("transformers.AutoTokenizer") as mock_tokenizer_class, \
+         patch("transformers.AutoModelForMaskedLM") as mock_model_class:
         
         # Mock tokenizer
         mock_tokenizer = Mock()
