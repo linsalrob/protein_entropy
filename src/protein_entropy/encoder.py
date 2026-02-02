@@ -217,7 +217,7 @@ class ModernProstEncoder:
         """Load the model and tokenizer."""
         try:
             import torch  # noqa: F401
-            from transformers import AutoConfig, AutoModelForMaskedLM, AutoTokenizer
+            from transformers import AutoConfig, AutoModel, AutoTokenizer
 
             model_name = model_path if model_path else "gbouras13/modernprost-base"
 
@@ -225,9 +225,13 @@ class ModernProstEncoder:
 
             # Load config first with trust_remote_code to handle custom configurations
             config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+            
+            if hasattr(config, "reference_compile"):
+                config.reference_compile = False
+                logger.debug("Set reference_compile=False in model config")
 
             self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            self.model = AutoModelForMaskedLM.from_pretrained(
+            self.model = AutoModel.from_pretrained(
                 model_name, config=config, trust_remote_code=True
             )
 
