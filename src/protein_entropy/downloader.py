@@ -87,6 +87,38 @@ def download_model(
         raise
 
 
+def is_model_cached(model_id: str, cache_dir: Optional[str] = None) -> bool:
+    """
+    Check if a model is already cached locally.
+
+    Args:
+        model_id: HuggingFace model ID (e.g., "Rostlab/ProstT5_fp16")
+        cache_dir: Optional cache directory path
+
+    Returns:
+        True if model is cached locally, False otherwise
+    """
+    if cache_dir is None:
+        cache_dir = str(get_cache_dir())
+
+    cache_path = Path(cache_dir)
+    if not cache_path.exists():
+        return False
+
+    # HuggingFace cache uses "models--" prefix
+    repo_cache_name = "models--" + model_id.replace("/", "--")
+    model_cache_path = cache_path / repo_cache_name
+
+    # Check if the model directory exists and has content
+    if model_cache_path.exists():
+        # Also check if it has snapshots (actual model files)
+        snapshots_path = model_cache_path / "snapshots"
+        if snapshots_path.exists() and any(snapshots_path.iterdir()):
+            return True
+
+    return False
+
+
 def list_downloaded_models(cache_dir: Optional[str] = None) -> list[str]:
     """
     List models that have been downloaded.
@@ -106,12 +138,7 @@ def list_downloaded_models(cache_dir: Optional[str] = None) -> list[str]:
 
     downloaded = []
     for model_name, repo_id in AVAILABLE_MODELS.items():
-        # Check if model directory exists in cache
-        # HuggingFace cache uses "models--" prefix
-        repo_cache_name = "models--" + repo_id.replace("/", "--")
-        model_cache_path = cache_path / repo_cache_name
-
-        if model_cache_path.exists():
+        if is_model_cached(repo_id, cache_dir):
             downloaded.append(model_name)
 
     return downloaded

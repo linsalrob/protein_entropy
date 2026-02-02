@@ -61,3 +61,26 @@ def test_list_downloaded_models_empty(tmp_path):
 
     models = list_downloaded_models(str(tmp_path))
     assert models == []
+
+
+def test_is_model_cached_not_exists(tmp_path):
+    """Test is_model_cached when model doesn't exist."""
+    from protein_entropy.downloader import is_model_cached
+
+    result = is_model_cached("Rostlab/ProstT5_fp16", str(tmp_path))
+    assert result is False
+
+
+def test_is_model_cached_exists(tmp_path):
+    """Test is_model_cached when model exists."""
+    from protein_entropy.downloader import is_model_cached
+
+    # Create fake model cache structure
+    model_cache = tmp_path / "models--Rostlab--ProstT5_fp16" / "snapshots" / "fake_snapshot"
+    model_cache.mkdir(parents=True, exist_ok=True)
+    
+    # Create a dummy file to simulate model content
+    (model_cache / "config.json").touch()
+
+    result = is_model_cached("Rostlab/ProstT5_fp16", str(tmp_path))
+    assert result is True

@@ -77,12 +77,25 @@ class ProstT5Encoder:
 
             logger.info(f"Loading ProstT5 model from {model_name}")
 
+            # Check if model is cached locally
+            from .downloader import is_model_cached
+
+            is_local = is_model_cached(model_name)
+            logger.debug(f"Model cached locally: {is_local}")
+
+            # Set loading parameters based on cache status
+            load_kwargs = {}
+            if is_local:
+                load_kwargs["local_files_only"] = True
+                logger.debug("Using local_files_only=True")
+
             self.tokenizer = T5Tokenizer.from_pretrained(
                 model_name,
                 do_lower_case=False,
+                **load_kwargs,
             )
 
-            self.model = T5EncoderModel.from_pretrained(model_name)
+            self.model = T5EncoderModel.from_pretrained(model_name, **load_kwargs)
 
             # Move model to device
             if self.device != "cpu":
@@ -223,17 +236,27 @@ class ModernProstEncoder:
 
             logger.info(f"Loading ModernProst model from {model_name}")
 
+            # Check if model is cached locally
+            from .downloader import is_model_cached
+
+            is_local = is_model_cached(model_name)
+            logger.debug(f"Model cached locally: {is_local}")
+
+            # Set loading parameters based on cache status
+            load_kwargs = {"trust_remote_code": True}
+            if is_local:
+                load_kwargs["local_files_only"] = True
+                logger.debug("Using local_files_only=True")
+
             # Load config first with trust_remote_code to handle custom configurations
-            config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
-            
+            config = AutoConfig.from_pretrained(model_name, **load_kwargs)
+
             if hasattr(config, "reference_compile"):
                 config.reference_compile = False
                 logger.debug("Set reference_compile=False in model config")
 
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            self.model = AutoModel.from_pretrained(
-                model_name, config=config, trust_remote_code=True
-            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, **load_kwargs)
+            self.model = AutoModel.from_pretrained(model_name, config=config, **load_kwargs)
 
             # Move to device
             if self.device != "cpu":
