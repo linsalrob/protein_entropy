@@ -262,6 +262,11 @@ class ModernProstEncoder:
             if self.device != "cpu":
                 self.model = self.model.to(self.device)
 
+            # ModernProst models use half precision only on CUDA
+            # CPU and MPS may not support half precision properly
+            if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
+                self.model = self.model.half()
+            
             self.model.eval()
 
             logger.info(f"ModernProst model loaded on {self.device}")
@@ -305,6 +310,12 @@ class ModernProstEncoder:
                 "Model not initialized. Model loading may have failed. "
                 "Check logs for details or try re-downloading the model."
             )
+        if self.device is None:
+            raise RuntimeError(
+                "Device not initialized. "
+                "Check logs for details or try re-initialising the GPU."
+            )
+        
 
         logger.debug(f"Encoding {len(sequences)} sequences with ModernProst")
 
@@ -316,6 +327,7 @@ class ModernProstEncoder:
         invalid_indices = []
 
         for i, seq in enumerate(sequences):
+            seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X")
             if seq is None:
                 logger.warning(f"Sequence at index {i} is None, skipping")
                 invalid_indices.append(i)
@@ -355,16 +367,24 @@ class ModernProstEncoder:
                 spaced_sequences.append(spaced)
 
         logger.debug(f"Processing {len(spaced_sequences)} valid sequences")
-        logger.debug(f"Sample spaced sequences (first 3): {spaced_sequences[:3]}")
+        logger.debug(f"Sample spaced sequences (first 3):\n{spaced_sequences[:3]}")
+        
+        for k, v in vars(self).items():
+            logger.debug("self.%s = %r", k, v)
+
 
         # Tokenize all sequences at once with padding
         try:
+            logger.debug("INPUTS")
             inputs = self.tokenizer(
                 spaced_sequences,
+                padding="longest",
+                truncation=False,
                 return_tensors="pt",
-                padding=True,
-                truncation=True,
+                add_special_tokens=False,
             )
+
+            logger.debug("TOKENIZATION passed")
 
             # Validate tokenizer outputs
             logger.debug(f"Tokenizer output keys: {inputs.keys()}")
@@ -374,7 +394,7 @@ class ModernProstEncoder:
                 logger.debug(f"  {key}: shape={getattr(value, 'shape', 'N/A')}, type={type(value)}")
 
         except Exception as e:
-            logger.error(f"Tokenization failed: {e}")
+            logger.error(f"Tokenization failed 1: {e}")
             logger.error(f"Input sequences count: {len(spaced_sequences)}")
             logger.error(f"Sample sequences: {spaced_sequences[:3]}")
             raise RuntimeError(
@@ -526,7 +546,8 @@ def encode_sequences(
     # Encode batches
     all_encoded = []
     for i, batch in enumerate(batches):
-        logger.info(f"Encoding batch {i+1}/{len(batches)}")
+        batchlen = sum(len(s) for s in batch)
+        logger.info(f"Encoding batch {i+1}/{len(batches)} [length: {batchlen}]")
         encoded_batch = encoder.encode(batch)
         all_encoded.extend(encoded_batch)
 

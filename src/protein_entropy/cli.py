@@ -50,6 +50,7 @@ def cmd_download(args) -> int:
     from .downloader import AVAILABLE_MODELS, download_model, list_downloaded_models
 
     logger = logging.getLogger(__name__)
+    logger.info(f"RUNNING: download command")
 
     if args.list:
         print("Available models:")
@@ -99,6 +100,7 @@ def cmd_encode3di(args) -> int:
 
     logger = logging.getLogger(__name__)
 
+    logger.info(f"RUNNING: encode3di command")
     logger.info(f"Reading input from: {args.input}")
 
     # Read sequences with error handling
@@ -153,6 +155,7 @@ def cmd_entropy(args) -> int:
 
     logger = logging.getLogger(__name__)
 
+    logger.info(f"RUNNING: entropy command")
     logger.info(f"Reading protein sequences from: {args.protein}")
     try:
         protein_data = list(read_fasta(args.protein))
@@ -228,6 +231,7 @@ def cmd_run(args) -> int:
 
     logger = logging.getLogger(__name__)
 
+    logger.info(f"RUNNING: run command")
     logger.info("Running complete pipeline")
 
     # Step 1: Read input
