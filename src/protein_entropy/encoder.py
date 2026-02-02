@@ -222,8 +222,8 @@ class ModernProstEncoder:
 
             logger.info(f"Loading ModernProst model from {model_name}")
 
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForMaskedLM.from_pretrained(model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            self.model = AutoModelForMaskedLM.from_pretrained(model_name, trust_remote_code=True)
 
             # Move to device
             if self.device != "cpu":
