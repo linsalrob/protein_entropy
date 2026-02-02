@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath('../../src'))
 
 # -- Project information -----------------------------------------------------
 project = 'protein_entropy'
-copyright = '2024, Rob Edwards'
+copyright = '2024-2026, Rob Edwards'
 author = 'Rob Edwards'
 
 # The full version, including alpha/beta/rc tags

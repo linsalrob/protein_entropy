@@ -233,7 +233,7 @@ If you use this software, please cite:
 @software{protein_entropy,
   author = {Edwards, Rob},
   title = {protein_entropy: Encode proteins and calculate entropy},
-  year = {2024},
+  year = {2024-2026},
   url = {https://github.com/linsalrob/protein_entropy}
 }
 ```

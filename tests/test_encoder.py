@@ -3,7 +3,7 @@ Tests for encoder module (with mocked models).
 """
 
 import importlib.util
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -14,8 +14,7 @@ def test_token_budget_batches():
 
     sequences = ["A" * 100, "B" * 200, "C" * 150, "D" * 50]
 
-    # With max_tokens=250, should get: [100+200=300 -> split], [100], [200], [150+50=200]
-    # Actually: [100], [200], [150, 50]
+    # With max_tokens=250, batches should be: [100], [200], [150, 50]
     batches = token_budget_batches(sequences, max_tokens=250)
 
     assert len(batches) > 0
@@ -69,10 +68,15 @@ def test_prostt5_encoder_mock():
         # Mock tokenizer
         mock_tokenizer = Mock()
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+
+        # Create a proper tensor for attention_mask
+        attention_mask_tensor = torch.ones(1, 10)
+
         mock_tokenizer.return_value = {
-            "input_ids": MagicMock(),
-            "attention_mask": MagicMock(),
+            "input_ids": torch.randint(0, 100, (1, 10)),
+            "attention_mask": attention_mask_tensor,
         }
+        mock_tokenizer.get = lambda key: {"attention_mask": attention_mask_tensor}.get(key)
 
         # Mock model
         mock_model = Mock()
@@ -92,10 +96,19 @@ def test_prostt5_encoder_mock():
         assert encoder.model is not None
         assert encoder.tokenizer is not None
 
+        # Test encode method
+        sequences = ["ACDEFGHIKLM"]
+        encoded = encoder.encode(sequences)
+        assert len(encoded) == 1
+        assert isinstance(encoded[0], str)
+        assert all(c.islower() for c in encoded[0])
+
 
 @pytest.mark.skipif(not importlib.util.find_spec("torch"), reason="PyTorch not installed")
 def test_modernprost_encoder_mock():
     """Test ModernProst encoder with mocked model."""
+    import torch
+
     from protein_entropy.encoder import ModernProstEncoder
 
     with (
@@ -106,10 +119,14 @@ def test_modernprost_encoder_mock():
         # Mock tokenizer
         mock_tokenizer = Mock()
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+
+        # Mock tokenizer methods needed for encoding
         mock_tokenizer.return_value = {
-            "input_ids": MagicMock(),
-            "attention_mask": MagicMock(),
+            "input_ids": torch.randint(0, 100, (1, 10)),
+            "attention_mask": torch.ones(1, 10),
         }
+        mock_tokenizer.convert_ids_to_tokens = lambda ids: ["a", "c", "d"] * (len(ids) // 3 + 1)
+        mock_tokenizer.all_special_tokens = []
 
         # Mock model
         mock_model = Mock()
@@ -117,9 +134,21 @@ def test_modernprost_encoder_mock():
         mock_model.eval.return_value = None
         mock_model.to.return_value = mock_model
 
+        # Mock model output
+        mock_output = Mock()
+        mock_output.logits = torch.randn(1, 10, 100)
+        mock_model.return_value = mock_output
+
         # Test encoder
         encoder = ModernProstEncoder(device="cpu")
 
         # The mocked encoder should work
         assert encoder.model is not None
         assert encoder.tokenizer is not None
+
+        # Test encode method
+        sequences = ["ACDEFGHIKLM"]
+        encoded = encoder.encode(sequences)
+        assert len(encoded) == 1
+        assert isinstance(encoded[0], str)
+        assert all(c.islower() for c in encoded[0])

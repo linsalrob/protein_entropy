@@ -138,20 +138,28 @@ class ProstT5Encoder:
         # For ProstT5, the decoder generates 3Di tokens
         # This is a simplified version - actual implementation may vary
         embeddings = outputs.last_hidden_state
+        attention_mask = inputs.get("attention_mask")
 
         # Convert embeddings to 3Di tokens
         # ProstT5 outputs structure tokens directly
         three_di_sequences = []
 
         for i, seq in enumerate(sequences):
-            # Get the embedding for this sequence
-            seq_embedding = embeddings[i, : len(seq)]
+            # Determine the valid token length for this sequence
+            if attention_mask is not None:
+                valid_len = int(attention_mask[i].sum().item())
+            else:
+                # Fallback to sequence length if no attention mask is available
+                valid_len = len(seq)
+
+            # Get the embedding for this sequence using the valid token length
+            seq_embedding = embeddings[i, :valid_len]
 
             # Convert to 3Di alphabet (simplified)
             # In practice, ProstT5 has a specific decoding mechanism
             # For now, we'll generate placeholder 3Di tokens
             # The actual 3Di alphabet is: acdefghiklmnpqrstvwy
-            three_di = self._decode_3di(seq_embedding, len(seq))
+            three_di = self._decode_3di(seq_embedding, seq_embedding.size(0))
             three_di_sequences.append(three_di.lower())
 
         logger.debug(f"Encoded {len(three_di_sequences)} sequences")
@@ -161,8 +169,14 @@ class ProstT5Encoder:
         """
         Decode embeddings to 3Di tokens.
 
-        This is a simplified placeholder. Real implementation would use
-        ProstT5's decoder or classification head.
+        WARNING: This is a placeholder implementation.
+        ProstT5 is an encoder-only model (T5EncoderModel) and does not
+        include a decoder or 3Di classification head. This method uses
+        a simplified approach that does not produce accurate 3Di predictions.
+
+        For production use, consider using ModernProstEncoder which has
+        a proper prediction head, or implement a classification layer
+        trained to map ProstT5 embeddings to 3Di tokens.
         """
         import torch
 
@@ -170,7 +184,7 @@ class ProstT5Encoder:
         three_di_alphabet = "acdefghiklmnpqrstvwy"
 
         # Simple approach: use argmax over alphabet dimension
-        # Real implementation would use proper decoder
+        # This is a placeholder and will not produce accurate results
         indices = torch.argmax(embedding, dim=-1) % 20
         three_di = "".join([three_di_alphabet[idx] for idx in indices[:seq_len]])
 
@@ -246,35 +260,37 @@ class ModernProstEncoder:
 
         three_di_sequences = []
 
-        for seq in sequences:
-            # Add spaces between amino acids
-            spaced_seq = " ".join(list(seq))
+        # Process sequences in batches for efficiency
+        # Add spaces between amino acids for all sequences
+        spaced_sequences = [" ".join(list(seq)) for seq in sequences]
 
-            # Tokenize
-            inputs = self.tokenizer(
-                spaced_seq,
-                return_tensors="pt",
-                padding=False,
-                truncation=True,
-            )
+        # Tokenize all sequences at once with padding
+        inputs = self.tokenizer(
+            spaced_sequences,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
 
-            # Move to device
-            if self.device != "cpu":
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        # Move to device
+        if self.device != "cpu":
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-            # Get predictions
-            with torch.no_grad():
-                outputs = self.model(**inputs)
-                logits = outputs.logits
+        # Get predictions for all sequences
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits = outputs.logits
 
-            # Get predicted token IDs
-            predicted_token_ids = torch.argmax(logits, dim=-1)
+        # Get predicted token IDs
+        predicted_token_ids = torch.argmax(logits, dim=-1)
 
-            # Decode to 3Di
-            # Extract only the sequence tokens (skip special tokens)
-            seq_tokens = predicted_token_ids[0][1:-1]  # Skip [CLS] and [SEP]
+        # Process each sequence's predictions
+        for i in range(len(sequences)):
+            # Get the sequence tokens for this sequence
+            seq_tokens = predicted_token_ids[i]
 
             # Convert token IDs to 3Di alphabet
+            # The _tokens_to_3di method will filter out special tokens
             three_di = self._tokens_to_3di(seq_tokens)
             three_di_sequences.append(three_di.lower())
 
@@ -283,22 +299,35 @@ class ModernProstEncoder:
 
     def _tokens_to_3di(self, token_ids) -> str:
         """
-        Convert token IDs to 3Di alphabet.
+        Convert token IDs to 3Di alphabet using the tokenizer vocabulary.
 
-        Based on George's implementation in phold.
+        This uses the tokenizer's ID-to-token mapping so that the predicted
+        token IDs are correctly mapped to 3Di symbols.
         """
-        # 3Di alphabet mapping
-        # This is a simplified version - actual mapping depends on tokenizer
-        three_di_alphabet = "acdefghiklmnpqrstvwy"
+        # Ensure we have a plain Python list of IDs
+        if hasattr(token_ids, "tolist"):
+            token_ids = token_ids.tolist()
 
-        three_di = ""
-        for token_id in token_ids:
-            # Map token ID to 3Di alphabet
-            # Real implementation would use proper vocabulary mapping
-            idx = int(token_id) % 20
-            three_di += three_di_alphabet[idx]
+        # Convert IDs to tokens using the tokenizer vocabulary
+        tokens = self.tokenizer.convert_ids_to_tokens(token_ids)
 
-        return three_di
+        # Collect non-special 3Di tokens
+        special_tokens = set(getattr(self.tokenizer, "all_special_tokens", []))
+        three_di_tokens = []
+        for tok in tokens:
+            # Skip special tokens (e.g., <pad>, <s>, </s>, etc.)
+            if tok in special_tokens:
+                continue
+            # Strip common subword prefixes (e.g., sentencepiece "▁")
+            if tok.startswith("▁"):
+                tok = tok[1:]
+            # Skip empty tokens after stripping
+            if not tok:
+                continue
+            three_di_tokens.append(tok)
+
+        # Join tokens to form the final 3Di sequence
+        return "".join(three_di_tokens)
 
 
 def encode_sequences(

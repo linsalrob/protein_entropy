@@ -18,11 +18,24 @@ def main():
     # Input file (use the test data)
     import os
     import sys
-    
-    # Get the package data directory
-    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    input_file = os.path.join(package_dir, "src", "protein_entropy", "data", "test_proteins.fasta")
-    
+
+    # Try to locate the test data as a package resource, with a fallback to the
+    # original source-tree path for development environments.
+    try:
+        from importlib import resources
+
+        test_data_resource = (
+            resources.files("protein_entropy") / "data" / "test_proteins.fasta"
+        )
+        with resources.as_file(test_data_resource) as resource_path:
+            input_file = str(resource_path)
+    except Exception:
+        # Fallback to development path
+        package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        input_file = os.path.join(
+            package_dir, "src", "protein_entropy", "data", "test_proteins.fasta"
+        )
+
     if not os.path.exists(input_file):
         print(f"Error: Test data not found at {input_file}")
         print("Please ensure protein_entropy is installed correctly.")

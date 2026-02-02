@@ -66,6 +66,13 @@ def cmd_download(args) -> int:
     if args.model == "all":
         models_to_download = list(AVAILABLE_MODELS.keys())
     else:
+        # Validate model name before downloading
+        if args.model not in AVAILABLE_MODELS:
+            logger.error(
+                f"Unknown model: {args.model}. "
+                f"Available models: {', '.join(AVAILABLE_MODELS.keys())}"
+            )
+            return 1
         models_to_download = [args.model]
 
     for model_name in models_to_download:
@@ -92,8 +99,19 @@ def cmd_encode3di(args) -> int:
 
     logger.info(f"Reading input from: {args.input}")
 
-    # Read sequences
-    sequences_data = list(read_fasta(args.input))
+    # Read sequences with error handling
+    try:
+        sequences_data = list(read_fasta(args.input))
+    except FileNotFoundError:
+        logger.error(f"Input file not found: {args.input}")
+        return 1
+    except PermissionError:
+        logger.error(f"Permission denied reading file: {args.input}")
+        return 1
+    except Exception as e:
+        logger.error(f"Error reading input file: {e}")
+        return 1
+
     seq_ids = [sid for sid, _ in sequences_data]
     sequences = [seq for _, seq in sequences_data]
 
@@ -129,12 +147,35 @@ def cmd_entropy(args) -> int:
     logger = logging.getLogger(__name__)
 
     logger.info(f"Reading protein sequences from: {args.protein}")
-    protein_data = list(read_fasta(args.protein))
+    try:
+        protein_data = list(read_fasta(args.protein))
+    except FileNotFoundError:
+        logger.error(f"Protein file not found: {args.protein}")
+        return 1
+    except PermissionError:
+        logger.error(f"Permission denied reading file: {args.protein}")
+        return 1
+    except Exception as e:
+        logger.error(f"Error reading protein file: {e}")
+        return 1
+
     seq_ids = [sid for sid, _ in protein_data]
     protein_seqs = [seq for _, seq in protein_data]
 
     logger.info(f"Reading 3Di sequences from: {args.three_di}")
-    three_di_data = list(read_fasta(args.three_di))
+    try:
+        three_di_data = list(read_fasta(args.three_di))
+    except FileNotFoundError:
+        logger.error(f"3Di file not found: {args.three_di}")
+        return 1
+    except PermissionError:
+        logger.error(f"Permission denied reading file: {args.three_di}")
+        return 1
+    except Exception as e:
+        logger.error(f"Error reading 3Di file: {e}")
+        return 1
+
+    three_di_ids = [sid for sid, _ in three_di_data]
     three_di_seqs = [seq for _, seq in three_di_data]
 
     # Verify lengths match
@@ -144,6 +185,17 @@ def cmd_entropy(args) -> int:
             f"but {len(three_di_seqs)} 3Di sequences"
         )
         return 1
+
+    # Check if sequence IDs match
+    if seq_ids != three_di_ids:
+        logger.warning(
+            "Sequence IDs do not match between protein and 3Di files. "
+            "Pairing sequences by position."
+        )
+        # Log first few mismatches for debugging
+        for i, (pid, did) in enumerate(zip(seq_ids[:5], three_di_ids[:5])):
+            if pid != did:
+                logger.warning(f"Position {i}: protein ID '{pid}' != 3Di ID '{did}'")
 
     logger.info(f"Calculating entropy for {len(protein_seqs)} sequence pairs")
 
