@@ -310,20 +310,77 @@ class ModernProstEncoder:
 
         three_di_sequences = []
 
+        # Validate input sequences before processing
+        # Filter out empty, None, or invalid sequences with detailed logging
+        valid_sequences = []
+        invalid_indices = []
+
+        for i, seq in enumerate(sequences):
+            if seq is None:
+                logger.warning(f"Sequence at index {i} is None, skipping")
+                invalid_indices.append(i)
+            elif not isinstance(seq, str):
+                logger.warning(f"Sequence at index {i} has invalid type {type(seq)}, skipping")
+                invalid_indices.append(i)
+            elif len(seq) == 0:
+                logger.warning(f"Sequence at index {i} is empty, skipping")
+                invalid_indices.append(i)
+            elif seq.isspace():
+                logger.warning(f"Sequence at index {i} contains only whitespace, skipping")
+                invalid_indices.append(i)
+            else:
+                valid_sequences.append(seq)
+
+        if invalid_indices:
+            logger.warning(
+                f"Filtered out {len(invalid_indices)} invalid sequences "
+                f"at indices: {invalid_indices[:10]}"
+                + (f" and {len(invalid_indices) - 10} more..." if len(invalid_indices) > 10 else "")
+            )
+
+        if not valid_sequences:
+            logger.error("All sequences were invalid or empty after filtering")
+            return []
+
         # Process sequences in batches for efficiency
         # Add spaces between amino acids for all sequences
-        spaced_sequences = [" ".join(list(seq)) for seq in sequences]
+        spaced_sequences = []
+        for seq in valid_sequences:
+            spaced = " ".join(list(seq))
+            # Double-check that spacing didn't create problematic output
+            if not spaced or spaced.isspace():
+                logger.error(f"Spaced sequence became empty/whitespace: original='{seq[:50]}...'")
+                spaced_sequences.append("A")  # Use fallback single amino acid
+            else:
+                spaced_sequences.append(spaced)
 
-        if not self.tokenizer:
-            raise Exception("self.tokenizer is None type")
+        logger.debug(f"Processing {len(spaced_sequences)} valid sequences")
+        logger.debug(f"Sample spaced sequences (first 3): {spaced_sequences[:3]}")
 
         # Tokenize all sequences at once with padding
-        inputs = self.tokenizer(
-            spaced_sequences,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-        )
+        try:
+            inputs = self.tokenizer(
+                spaced_sequences,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+            )
+
+            # Validate tokenizer outputs
+            logger.debug(f"Tokenizer output keys: {inputs.keys()}")
+            for key, value in inputs.items():
+                if value is None:
+                    raise ValueError(f"Tokenizer returned None for key '{key}'")
+                logger.debug(f"  {key}: shape={getattr(value, 'shape', 'N/A')}, type={type(value)}")
+
+        except Exception as e:
+            logger.error(f"Tokenization failed: {e}")
+            logger.error(f"Input sequences count: {len(spaced_sequences)}")
+            logger.error(f"Sample sequences: {spaced_sequences[:3]}")
+            raise RuntimeError(
+                f"Tokenization failed with error: {e}. "
+                "This may indicate invalid input sequences or tokenizer configuration issues."
+            ) from e
 
         # Move to device
         if self.device != "cpu":
@@ -368,17 +425,27 @@ class ModernProstEncoder:
         # Get predicted token IDs
         predicted_token_ids = torch.argmax(logits, dim=-1)
 
-        # Process each sequence's predictions
-        for i in range(len(sequences)):
+        # Process each valid sequence's predictions
+        valid_results = []
+        for i in range(len(valid_sequences)):
             # Get the sequence tokens for this sequence
             seq_tokens = predicted_token_ids[i]
 
             # Convert token IDs to 3Di alphabet
             # The _tokens_to_3di method will filter out special tokens
             three_di = self._tokens_to_3di(seq_tokens)
-            three_di_sequences.append(three_di.lower())
+            valid_results.append(three_di.lower())
 
-        logger.debug(f"Encoded {len(three_di_sequences)} sequences")
+        # Reconstruct results with empty strings for invalid sequences
+        result_idx = 0
+        for i in range(len(sequences)):
+            if i in invalid_indices:
+                three_di_sequences.append("")  # Empty string for invalid sequences
+            else:
+                three_di_sequences.append(valid_results[result_idx])
+                result_idx += 1
+
+        logger.debug(f"Encoded {len(three_di_sequences)} sequences ({len(valid_results)} valid)")
         return three_di_sequences
 
     def _tokens_to_3di(self, token_ids) -> str:
