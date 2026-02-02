@@ -271,6 +271,11 @@ class ModernProstEncoder:
             raise RuntimeError(
                 "PyTorch is required for encoding. Install with: pip install torch transformers"
             ) from e
+        except Exception as e:
+            logger.error(f"Failed to load ModernProst model: {e}")
+            raise RuntimeError(
+                f"Failed to load ModernProst model from {model_path or 'gbouras13/modernprost-base'}: {e}"
+            ) from e
 
     def encode(self, sequences: List[str]) -> List[str]:
         """
@@ -288,6 +293,18 @@ class ModernProstEncoder:
 
         if not sequences:
             return []
+
+        # Validate that model and tokenizer are loaded
+        if self.tokenizer is None:
+            raise RuntimeError(
+                "Tokenizer not initialized. Model loading may have failed. "
+                "Check logs for details or try re-downloading the model."
+            )
+        if self.model is None:
+            raise RuntimeError(
+                "Model not initialized. Model loading may have failed. "
+                "Check logs for details or try re-downloading the model."
+            )
 
         logger.debug(f"Encoding {len(sequences)} sequences with ModernProst")
 
