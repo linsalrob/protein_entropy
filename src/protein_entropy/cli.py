@@ -5,6 +5,7 @@ Command-line interface for protein_entropy.
 import argparse
 import logging
 import sys
+import traceback
 from typing import Optional
 
 from . import __version__
@@ -129,7 +130,12 @@ def cmd_encode3di(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.exception(f"Encoding failed", exc_info=True)
+        tb = traceback.TracebackException.from_exception(
+            e,
+            capture_locals=False,
+            compact=False,     # <-- THIS is the key
+        )
+        logger.error("Encoding failed 1:\n%s", "".join(tb.format()))
         raise
 
     # Write output
@@ -243,7 +249,12 @@ def cmd_run(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.exception(f"Encoding failed", exc_info=True)
+        tb = traceback.TracebackException.from_exception(
+            e,
+            capture_locals=False,
+            compact=False,     # <-- THIS is the key
+        )
+        logger.error("Encoding failed 2:\n%s", "".join(tb.format()))
         raise
 
     # Step 3: Calculate entropies
