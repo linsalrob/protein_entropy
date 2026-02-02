@@ -128,7 +128,7 @@ def cmd_encode3di(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.error(f"Encoding failed: {e}")
+        logger.exception(f"Encoding failed")
         return 1
 
     # Write output
@@ -242,7 +242,7 @@ def cmd_run(args) -> int:
             batch_size=args.batch_size,
         )
     except Exception as e:
-        logger.error(f"Encoding failed: {e}")
+        logger.exception(f"Encoding failed")
         return 1
 
     # Step 3: Calculate entropies
