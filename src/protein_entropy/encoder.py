@@ -372,13 +372,13 @@ class ModernProstEncoder:
         
         # Tokenize all sequences at once with padding
         try:
-            logger.debug("INPUTS")
+            logger.debug("Tokenizing sequences")
             inputs = self.tokenizer(
                 spaced_sequences,
                 padding="longest",
                 truncation=False,
                 return_tensors="pt",
-                add_special_tokens=False,
+                add_special_tokens=True,  # Include BOS/EOS tokens as expected by the model
             )
 
 
@@ -440,6 +440,16 @@ class ModernProstEncoder:
 
         # Get predicted token IDs
         predicted_token_ids = torch.argmax(logits, dim=-1)
+        
+        logger.debug(f"Logits shape: {logits.shape}")
+        logger.debug(f"Predicted token IDs shape: {predicted_token_ids.shape}")
+        logger.debug(f"Sample predicted IDs (first sequence, first 20): {predicted_token_ids[0][:20].tolist() if len(predicted_token_ids[0]) > 0 else []}")
+        
+        # Debug: Check what tokens these IDs map to
+        if len(predicted_token_ids) > 0 and len(predicted_token_ids[0]) > 0:
+            sample_ids = predicted_token_ids[0][:min(20, len(predicted_token_ids[0]))].tolist()
+            sample_tokens = self.tokenizer.convert_ids_to_tokens(sample_ids)
+            logger.debug(f"Sample tokens from IDs: {sample_tokens}")
 
         # Process each valid sequence's predictions
         valid_results = []
@@ -450,7 +460,8 @@ class ModernProstEncoder:
             # Convert token IDs to 3Di alphabet
             # The _tokens_to_3di method will filter out special tokens
             three_di = self._tokens_to_3di(seq_tokens)
-            valid_results.append(three_di.lower())
+            # Note: Keep uppercase as expected by Foldseek and standard 3Di format
+            valid_results.append(three_di)
 
         # Reconstruct results with empty strings for invalid sequences
         result_idx = 0
@@ -466,35 +477,60 @@ class ModernProstEncoder:
 
     def _tokens_to_3di(self, token_ids) -> str:
         """
-        Convert token IDs to 3Di alphabet using the tokenizer vocabulary.
+        Convert predicted token IDs to 3Di alphabet characters.
 
-        This uses the tokenizer's ID-to-token mapping so that the predicted
-        token IDs are correctly mapped to 3Di symbols.
+        The ModernProst model outputs predictions where each position corresponds
+        to a 3Di structural state. The tokenizer vocabulary maps IDs to characters.
+        
+        Note: The model is trained to predict 3Di alphabet characters directly,
+        so we use the tokenizer's vocabulary to decode the predicted token IDs.
         """
+        import torch
+        
         # Ensure we have a plain Python list of IDs
         if hasattr(token_ids, "tolist"):
             token_ids = token_ids.tolist()
 
-        # Convert IDs to tokens using the tokenizer vocabulary
+        # Convert IDs to tokens using the tokenizer vocabulary  
+        # The tokenizer should map token IDs to their corresponding characters
         tokens = self.tokenizer.convert_ids_to_tokens(token_ids)
 
-        # Collect non-special 3Di tokens
+        # Filter and clean tokens
         special_tokens = set(getattr(self.tokenizer, "all_special_tokens", []))
-        three_di_tokens = []
+        three_di_chars = []
+        
         for tok in tokens:
-            # Skip special tokens (e.g., <pad>, <s>, </s>, etc.)
+            # Skip special tokens (e.g., <pad>, <s>, </s>, <unk>, etc.)
             if tok in special_tokens:
                 continue
-            # Strip common subword prefixes (e.g., sentencepiece "▁")
+                
+            # Strip any special prefixes (e.g., sentencepiece "▁" or Ġ)
+            cleaned_tok = tok
             if tok.startswith("▁"):
-                tok = tok[1:]
-            # Skip empty tokens after stripping
-            if not tok:
+                cleaned_tok = tok[1:]
+            elif tok.startswith("Ġ"):
+                cleaned_tok = tok[1:]
+            
+            # Skip empty tokens after cleaning
+            if not cleaned_tok:
                 continue
-            three_di_tokens.append(tok)
+            
+            # Convert to uppercase (3Di alphabet is uppercase)
+            # This handles cases where tokenizer might output lowercase
+            cleaned_tok = cleaned_tok.upper()
+            
+            # Validate it's in the 3Di alphabet (optional, for debugging)
+            # 3Di alphabet: D P V W K Q F R I L S C A T G H N M (and sometimes E for extension)
+            # If it's a single character, it should be valid
+            if len(cleaned_tok) == 1:
+                three_di_chars.append(cleaned_tok)
+            else:
+                # Multi-character tokens might need different handling
+                # For now, add each character
+                three_di_chars.extend(list(cleaned_tok))
 
-        # Join tokens to form the final 3Di sequence
-        return "".join(three_di_tokens)
+        # Join to form the final 3Di sequence
+        return "".join(three_di_chars)
 
 
 def encode_sequences(
