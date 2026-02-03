@@ -2,13 +2,14 @@
 Model and asset downloader.
 """
 
-import logging
 from pathlib import Path
 from typing import Optional
 
 from huggingface_hub import snapshot_download
 
-logger = logging.getLogger(__name__)
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Available models
 AVAILABLE_MODELS = {

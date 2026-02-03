@@ -2,7 +2,6 @@
 FASTA file I/O utilities.
 """
 
-import logging
 from pathlib import Path
 from typing import Iterator, Tuple
 
@@ -10,7 +9,9 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-logger = logging.getLogger(__name__)
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def read_fasta(fasta_path: str) -> Iterator[Tuple[str, str]]:

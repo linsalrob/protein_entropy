@@ -2,10 +2,11 @@
 3Di encoding using ProstT5 and modernprost models.
 """
 
-import logging
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def token_budget_batches(

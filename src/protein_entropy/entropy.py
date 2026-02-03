@@ -2,13 +2,14 @@
 Shannon entropy calculation for sequences.
 """
 
-import logging
 from collections import Counter
 from typing import Union
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def calculate_entropy(sequence: Union[str, list]) -> float:

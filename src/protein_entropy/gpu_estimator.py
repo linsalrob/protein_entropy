@@ -2,10 +2,11 @@
 GPU memory estimation tool for optimal batch sizing.
 """
 
-import logging
 from typing import Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def estimate_max_sequence_length(
