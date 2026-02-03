@@ -265,7 +265,7 @@ class ModernProstEncoder:
 
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
-            if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
+            if self.device.startswith("cuda"):
                 self.model = self.model.half()
             
             self.model.eval()
