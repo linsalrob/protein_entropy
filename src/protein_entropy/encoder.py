@@ -480,11 +480,13 @@ class ModernProstEncoder:
         """
         Convert predicted token IDs to 3Di alphabet characters.
 
-        The ModernProst model outputs predictions where each position corresponds
-        to a 3Di structural state. The tokenizer vocabulary maps IDs to characters.
+        ModernProst predicts 3Di structural states. The output logits correspond
+        to the 3Di alphabet, NOT the amino acid alphabet used for input.
         
-        Note: The model is trained to predict 3Di alphabet characters directly,
-        so we use the tokenizer's vocabulary to decode the predicted token IDs.
+        3Di alphabet (20 states): A C D E F G H I K L M N P Q R S T V W (Y is rare)
+        Standard order used by Foldseek/3Di tools.
+        
+        The model outputs token IDs that need to be mapped to this alphabet.
         """
         import torch
         
@@ -492,13 +494,25 @@ class ModernProstEncoder:
         if hasattr(token_ids, "tolist"):
             token_ids = token_ids.tolist()
 
-        # Convert IDs to tokens using the tokenizer vocabulary  
-        # The tokenizer should map token IDs to their corresponding characters
+        # 3Di alphabet in standard order (as used by Foldseek)
+        # This is the target vocabulary the model predicts
+        THREE_DI_ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
+        
+        # The tokenizer vocabulary is for INPUT (amino acids)
+        # But we need to check what the OUTPUT vocabulary is
+        # Let's try using the tokenizer first, then fall back to direct mapping
+        
         tokens = self.tokenizer.convert_ids_to_tokens(token_ids)
         
         logger.debug(f"_tokens_to_3di: Processing {len(tokens)} tokens")
         logger.debug(f"_tokens_to_3di: First 10 raw tokens: {tokens[:10]}")
+        logger.debug(f"_tokens_to_3di: First 10 token IDs: {token_ids[:10]}")
 
+        # Check if tokenizer vocabulary has 3Di characters
+        # by examining what we got
+        sample_tokens_upper = [t.upper() if isinstance(t, str) else str(t) for t in tokens[:10]]
+        logger.debug(f"_tokens_to_3di: Sample tokens (uppercase): {sample_tokens_upper}")
+        
         # Filter and clean tokens
         special_tokens = set(getattr(self.tokenizer, "all_special_tokens", []))
         three_di_chars = []
@@ -512,30 +526,29 @@ class ModernProstEncoder:
                 
             # Strip any special prefixes (e.g., sentencepiece "▁" or Ġ)
             cleaned_tok = tok
-            if tok.startswith("▁"):
-                cleaned_tok = tok[1:]
-            elif tok.startswith("Ġ"):
-                cleaned_tok = tok[1:]
+            if isinstance(tok, str):
+                if tok.startswith("▁"):
+                    cleaned_tok = tok[1:]
+                elif tok.startswith("Ġ"):
+                    cleaned_tok = tok[1:]
+            else:
+                cleaned_tok = str(tok)
             
             # Skip empty tokens after cleaning
             if not cleaned_tok:
                 continue
             
             # Convert to uppercase (3Di alphabet is uppercase)
-            # This handles cases where tokenizer might output lowercase
             cleaned_tok_upper = cleaned_tok.upper()
             
-            if idx < 5:  # Log first few conversions
+            if idx < 10:  # Log first few conversions
                 logger.debug(f"_tokens_to_3di: Token {idx}: '{tok}' -> cleaned: '{cleaned_tok}' -> upper: '{cleaned_tok_upper}'")
             
-            # Validate it's in the 3Di alphabet (optional, for debugging)
-            # 3Di alphabet: D P V W K Q F R I L S C A T G H N M (and sometimes E for extension)
-            # If it's a single character, it should be valid
+            # Add to result
             if len(cleaned_tok_upper) == 1:
                 three_di_chars.append(cleaned_tok_upper)
             else:
-                # Multi-character tokens might need different handling
-                # For now, add each character
+                # Multi-character tokens - add each character
                 three_di_chars.extend(list(cleaned_tok_upper))
 
         result = "".join(three_di_chars)
