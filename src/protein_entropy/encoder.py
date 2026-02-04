@@ -450,6 +450,7 @@ class ModernProstEncoder:
             sample_ids = predicted_token_ids[0][:min(20, len(predicted_token_ids[0]))].tolist()
             sample_tokens = self.tokenizer.convert_ids_to_tokens(sample_ids)
             logger.debug(f"Sample tokens from IDs: {sample_tokens}")
+            logger.debug(f"Special tokens: {self.tokenizer.all_special_tokens}")
 
         # Process each valid sequence's predictions
         valid_results = []
@@ -494,14 +495,19 @@ class ModernProstEncoder:
         # Convert IDs to tokens using the tokenizer vocabulary  
         # The tokenizer should map token IDs to their corresponding characters
         tokens = self.tokenizer.convert_ids_to_tokens(token_ids)
+        
+        logger.debug(f"_tokens_to_3di: Processing {len(tokens)} tokens")
+        logger.debug(f"_tokens_to_3di: First 10 raw tokens: {tokens[:10]}")
 
         # Filter and clean tokens
         special_tokens = set(getattr(self.tokenizer, "all_special_tokens", []))
         three_di_chars = []
         
-        for tok in tokens:
+        for idx, tok in enumerate(tokens):
             # Skip special tokens (e.g., <pad>, <s>, </s>, <unk>, etc.)
             if tok in special_tokens:
+                if idx < 5:  # Log first few special tokens
+                    logger.debug(f"_tokens_to_3di: Skipping special token at {idx}: {tok}")
                 continue
                 
             # Strip any special prefixes (e.g., sentencepiece "▁" or Ġ)
@@ -517,20 +523,24 @@ class ModernProstEncoder:
             
             # Convert to uppercase (3Di alphabet is uppercase)
             # This handles cases where tokenizer might output lowercase
-            cleaned_tok = cleaned_tok.upper()
+            cleaned_tok_upper = cleaned_tok.upper()
+            
+            if idx < 5:  # Log first few conversions
+                logger.debug(f"_tokens_to_3di: Token {idx}: '{tok}' -> cleaned: '{cleaned_tok}' -> upper: '{cleaned_tok_upper}'")
             
             # Validate it's in the 3Di alphabet (optional, for debugging)
             # 3Di alphabet: D P V W K Q F R I L S C A T G H N M (and sometimes E for extension)
             # If it's a single character, it should be valid
-            if len(cleaned_tok) == 1:
-                three_di_chars.append(cleaned_tok)
+            if len(cleaned_tok_upper) == 1:
+                three_di_chars.append(cleaned_tok_upper)
             else:
                 # Multi-character tokens might need different handling
                 # For now, add each character
-                three_di_chars.extend(list(cleaned_tok))
+                three_di_chars.extend(list(cleaned_tok_upper))
 
-        # Join to form the final 3Di sequence
-        return "".join(three_di_chars)
+        result = "".join(three_di_chars)
+        logger.debug(f"_tokens_to_3di: Result length: {len(result)}, first 50 chars: {result[:50]}")
+        return result
 
 
 def encode_sequences(
