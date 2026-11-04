@@ -94,12 +94,12 @@ Output Formats
 3Di FASTA Output
 ~~~~~~~~~~~~~~~~
 
-Lowercase 3Di tokens::
+Uppercase 3Di tokens (the Foldseek alphabet)::
 
     >sequence_id_1
-    MKAAHDGHAKLGHEALGHDALGHEKLAHGDLAGHDEALGHKLAGHDALGHEALK
+    DDPVVVVVVVCVVVVDPDDDPVNSVVVVVVDDPVPDDDVDDDPVPDDDDD
     >sequence_id_2
-    ACDEFGHIKLMNPQRSTVWY
+    DWKWKWWQFPVRDIDIDIDPDPDDDDPVVVVVVLVVDDDQWDWDWDDDPP
 
 Entropy TSV Output
 ~~~~~~~~~~~~~~~~~~
