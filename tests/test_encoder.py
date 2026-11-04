@@ -218,5 +218,6 @@ def test_modernprost_refuses_unknown_remote_code():
     from protein_entropy.encoder import _trust_remote_code
 
     assert _trust_remote_code("gbouras13/modernprost-50M")
-    with pytest.raises(ValueError, match="Refusing to run remote code"):
-        _trust_remote_code("someone/untrusted-model")
+    for repo in ("someone/untrusted-model", "Rostlab/ProstT5_fp16"):
+        with pytest.raises(ValueError, match="Refusing to run remote code"):
+            _trust_remote_code(repo)

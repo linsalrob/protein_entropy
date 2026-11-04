@@ -100,12 +100,15 @@ def _trust_remote_code(model_name: str) -> bool:
     """
     from .downloader import AVAILABLE_MODELS
 
-    if model_name in AVAILABLE_MODELS.values() or Path(model_name).is_dir():
+    modernprost_repos = {
+        repo for name, repo in AVAILABLE_MODELS.items() if name.startswith("modernprost")
+    }
+    if model_name in modernprost_repos or Path(model_name).is_dir():
         return True
     raise ValueError(
         f"Refusing to run remote code from {model_name!r}: ModernProst models need "
-        "trust_remote_code. Use one of the known models "
-        f"({', '.join(sorted(set(AVAILABLE_MODELS.values())))}) or download the "
+        "trust_remote_code. Use one of the known ModernProst models "
+        f"({', '.join(sorted(modernprost_repos))}) or download the "
         "repository and pass its local directory as --model-path."
     )
 
