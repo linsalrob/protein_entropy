@@ -281,6 +281,8 @@ def cmd_estimate(args) -> int:
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser."""
+    from .downloader import AVAILABLE_MODELS
+
     parser = argparse.ArgumentParser(
         prog="protein_entropy",
         description="Encode proteins using transformers and calculate their entropy",
@@ -317,7 +319,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser_download.add_argument(
         "model",
-        choices=["prostt5_fp16", "modernprost", "modernprost_base", "modernprost_profiles", "all"],
+        choices=list(AVAILABLE_MODELS) + ["all"],
         help="Model to download",
     )
     parser_download.add_argument(
@@ -360,15 +362,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser_encode.add_argument(
         "-m",
         "--model",
-        default="prostt5",
-        choices=[
-            "prostt5",
-            "prostt5_fp16",
-            "modernprost",
-            "modernprost_base",
-            "modernprost_profiles",
-        ],
-        help="Model to use for encoding (default: prostt5)",
+        default="modernprost",
+        choices=list(AVAILABLE_MODELS),
+        help="Model to use for encoding (default: modernprost)",
     )
     parser_encode.add_argument(
         "--model-path",
@@ -441,15 +437,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser_run.add_argument(
         "-m",
         "--model",
-        default="prostt5",
-        choices=[
-            "prostt5",
-            "prostt5_fp16",
-            "modernprost",
-            "modernprost_base",
-            "modernprost_profiles",
-        ],
-        help="Model to use for encoding (default: prostt5)",
+        default="modernprost",
+        choices=list(AVAILABLE_MODELS),
+        help="Model to use for encoding (default: modernprost)",
     )
     parser_run.add_argument(
         "--model-path",
@@ -479,15 +469,9 @@ def create_parser() -> argparse.ArgumentParser:
     parser_estimate.add_argument(
         "-m",
         "--model",
-        default="prostt5",
-        choices=[
-            "prostt5",
-            "prostt5_fp16",
-            "modernprost",
-            "modernprost_base",
-            "modernprost_profiles",
-        ],
-        help="Model to test (default: prostt5)",
+        default="modernprost",
+        choices=list(AVAILABLE_MODELS),
+        help="Model to test (default: modernprost)",
     )
     parser_estimate.add_argument(
         "--model-path",

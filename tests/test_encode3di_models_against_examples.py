@@ -175,15 +175,20 @@ def test_modernprost_against_example():
     print(f"\nEncoding {len(sequences)} sequences with ModernProst...")
     
     try:
-        # Encode with modernprost-base (default)
+        # example_modernprost_3di.fasta was generated with the original
+        # gbouras13/modernprost-base, which upstream renamed to
+        # modernprost-base-deprecated when the name was reused for the new
+        # multitask model. ModernProst decoding is deterministic, so that model
+        # reproduces the file exactly.
         encoded = encode_sequences(
             sequences=sequences,
-            model_type="modernprost_base",
+            model_type="modernprost_base_deprecated",
             device=device,
             batch_size=10000,  # Reasonable batch size for CPU
         )
-    except Exception as e:
-        pytest.skip(f"Model encoding failed (model may not be cached): {e}")
+    except OSError as e:
+        # Raised by huggingface_hub when the model is not cached and cannot be downloaded
+        pytest.skip(f"Model not available (offline and not cached?): {e}")
     
     # Build dictionary mapping IDs to encoded sequences
     actual_3di = {seq_ids[i]: encoded[i] for i in range(len(seq_ids))}
@@ -207,6 +212,11 @@ def test_modernprost_against_example():
 @pytest.mark.skipif(
     os.environ.get("RUN_INTEGRATION", "0") != "1",
     reason="Integration test - set RUN_INTEGRATION=1 to run"
+)
+@pytest.mark.xfail(
+    reason="ProstT5 uses sampled generation (do_sample=True, per the model card), "
+    "so exact string matches to a previous run are not reproducible",
+    strict=False,
 )
 def test_prostt5_against_example():
     """
@@ -258,8 +268,9 @@ def test_prostt5_against_example():
             device=device,
             batch_size=10000,  # Reasonable batch size for CPU
         )
-    except Exception as e:
-        pytest.skip(f"Model encoding failed (model may not be cached): {e}")
+    except OSError as e:
+        # Raised by huggingface_hub when the model is not cached and cannot be downloaded
+        pytest.skip(f"Model not available (offline and not cached?): {e}")
     
     # Build dictionary mapping IDs to encoded sequences
     actual_3di = {seq_ids[i]: encoded[i] for i in range(len(seq_ids))}
@@ -310,9 +321,9 @@ def test_fasta_reader_utility():
     
     # Check expected sequences exist (based on the file preview)
     expected_ids = [
-        "MW460250_1:DQEPQRKE_CDS_0001",
-        "MW460250_1:DQEPQRKE_CDS_0002",
-        "MW460250_1:DQEPQRKE_CDS_0003",
+        "orf1",
+        "orf2",
+        "orf3",
     ]
     
     for exp_id in expected_ids:

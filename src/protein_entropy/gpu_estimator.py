@@ -60,6 +60,7 @@ def estimate_max_sequence_length(
         logger.info(f"Testing length: {current_length}")
 
         success_count = 0
+        hit_oom = False
 
         for trial in range(num_trials):
             # Clear GPU memory before each trial
@@ -91,6 +92,7 @@ def estimate_max_sequence_length(
                     logger.info(
                         f"Trial {trial + 1}/{num_trials}: Out of memory at length {current_length}"
                     )
+                    hit_oom = True
                     break
                 else:
                     logger.warning(f"Trial {trial + 1}/{num_trials}: Unexpected error: {e}")
@@ -105,8 +107,8 @@ def estimate_max_sequence_length(
         }
         results.append(result)
 
-        # If we got OOM errors, we've found the limit
-        if success_count == 0:
+        # Any OOM means this length exceeds the limit; do not try longer ones
+        if hit_oom or success_count == 0:
             logger.info(f"Found memory limit at length {current_length}")
             break
 

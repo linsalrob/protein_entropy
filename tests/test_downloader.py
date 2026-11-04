@@ -19,7 +19,7 @@ def test_available_models():
     assert AVAILABLE_MODELS["prostt5_fp16"] == "Rostlab/ProstT5_fp16"
     assert AVAILABLE_MODELS["modernprost"] == "gbouras13/modernprost-base"
     assert AVAILABLE_MODELS["modernprost_base"] == "gbouras13/modernprost-base"
-    assert AVAILABLE_MODELS["modernprost_profiles"] == "gbouras13/modernprost-profiles"
+    assert AVAILABLE_MODELS["modernprost_profiles"] == "gbouras13/modernprost-profiles-deprecated"
 
 
 def test_get_cache_dir():

@@ -4,7 +4,7 @@ Basic example: Encode proteins and calculate entropy.
 
 This example demonstrates:
 1. Reading protein sequences from FASTA
-2. Encoding to 3Di using ProstT5
+2. Encoding to 3Di using ModernProst
 3. Calculating Shannon entropy
 4. Writing results
 """
@@ -55,7 +55,7 @@ def main():
     try:
         encoded = encode_sequences(
             sequences=sequences,
-            model_type="prostt5",
+            model_type="modernprost",
             device="cpu",  # Use CPU for this example
             batch_size=1000,
         )

@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "transformers>=4.47.0",
+    "transformers>=5.14.1",  # required by the multitask ModernProst remote code
     "sentencepiece>=0.1.99",
     "protobuf>=6.33.1",
     "biopython>=1.80",

@@ -12,11 +12,17 @@ from .logging_config import get_logger
 logger = get_logger(__name__)
 
 # Available models
+# The multitask ModernProst models (modernprost-50M, modernprost-base) need
+# transformers >= 5.14.1. The original modernprost-profiles repository was renamed
+# to modernprost-profiles-deprecated upstream.
 AVAILABLE_MODELS = {
-    "prostt5_fp16": "Rostlab/ProstT5_fp16",
     "modernprost": "gbouras13/modernprost-base",
     "modernprost_base": "gbouras13/modernprost-base",
-    "modernprost_profiles": "gbouras13/modernprost-profiles",
+    "modernprost_50m": "gbouras13/modernprost-50M",
+    "modernprost_base_deprecated": "gbouras13/modernprost-base-deprecated",
+    "modernprost_profiles": "gbouras13/modernprost-profiles-deprecated",
+    "prostt5": "Rostlab/ProstT5_fp16",
+    "prostt5_fp16": "Rostlab/ProstT5_fp16",
 }
 
 

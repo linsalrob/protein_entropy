@@ -28,7 +28,8 @@ Encode protein sequences to 3Di::
 
 Options:
 
-* ``-m, --model``: Model to use (prostt5, prostt5_fp16, modernprost)
+* ``-m, --model``: Model to use (default: modernprost; also modernprost_base, modernprost_50m,
+  modernprost_base_deprecated, modernprost_profiles, prostt5, prostt5_fp16)
 * ``--model-path PATH``: Custom model path
 * ``--device``: Device (cuda, mps, cpu)
 * ``--batch-size N``: Maximum tokens per batch
@@ -193,22 +194,22 @@ Start with a conservative batch size and increase::
 Models
 ------
 
+ModernProst (default)
+~~~~~~~~~~~~~~~~~~~~~
+
+* **Repository**: gbouras13/modernprost-base (``modernprost``); also gbouras13/modernprost-50M,
+  gbouras13/modernprost-base-deprecated and gbouras13/modernprost-profiles-deprecated
+* **Type**: Residue-level classifier (one 3Di state per residue, deterministic)
+* **Implementation**: Based on phold and genome_entropy
+* **Requires**: ``transformers>=5.14.1`` for the multitask models
+
 ProstT5_fp16
 ~~~~~~~~~~~~
 
 * **Repository**: Rostlab/ProstT5_fp16
-* **Type**: T5-based encoder
+* **Type**: T5 sequence-to-sequence model (sampled generation, so runs can differ)
 * **Input**: Amino acid sequences
 * **Output**: 3Di structural tokens
-* **Recommended for**: General use, good balance of speed and accuracy
-
-ModernProst-profiles
-~~~~~~~~~~~~~~~~~~~~
-
-* **Repository**: gbouras13/modernprost-profiles
-* **Type**: Masked language model
-* **Implementation**: Based on phold
-* **Recommended for**: When profile information is important
 
 Troubleshooting
 ---------------

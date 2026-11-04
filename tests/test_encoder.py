@@ -34,121 +34,144 @@ def test_token_budget_batches_empty():
 
 
 @pytest.mark.integration
-def test_prostt5_encoder_integration():
+def test_modernprost_encoder_integration():
     """
-    Integration test for ProstT5 encoder.
+    Integration test for the ModernProst encoder.
 
     This test actually loads and runs the model.
     Skip by default unless RUN_INTEGRATION=1 or --run-integration flag.
     """
-    from protein_entropy.encoder import ProstT5Encoder
+    from protein_entropy.encoder import THREE_DI_ALPHABET, ModernProstEncoder
 
-    encoder = ProstT5Encoder(device="cpu")
+    encoder = ModernProstEncoder(device="cpu")
 
-    sequences = ["ACDEFGHIKLM"]
+    sequences = ["ACDEFGHIKLM", "MKTAYIAKQRQISFVKSHFSRQ"]
     encoded = encoder.encode(sequences)
 
-    assert len(encoded) == 1
-    assert len(encoded[0]) == len(sequences[0])
-    assert all(c.islower() for c in encoded[0])
+    assert len(encoded) == len(sequences)
+    # ModernProst predicts exactly one 3Di state per residue
+    for seq, three_di in zip(sequences, encoded):
+        assert len(three_di) == len(seq)
+        assert set(three_di) <= set(THREE_DI_ALPHABET)
+
+
+def _mock_batch(seq_lens):
+    """Build a padded tokenizer output for sequences of the given lengths."""
+    import torch
+    from transformers import BatchEncoding
+
+    width = max(seq_lens)
+    mask = torch.zeros(len(seq_lens), width, dtype=torch.long)
+    for i, n in enumerate(seq_lens):
+        mask[i, :n] = 1
+    return BatchEncoding({"input_ids": torch.ones_like(mask), "attention_mask": mask})
 
 
 @pytest.mark.skipif(not importlib.util.find_spec("torch"), reason="PyTorch not installed")
 def test_prostt5_encoder_mock():
-    """Test ProstT5 encoder with mocked model."""
+    """ProstT5 output is decoded from generate(), uppercased and trimmed to input length."""
     import torch
 
     from protein_entropy.encoder import ProstT5Encoder
 
+    sequences = ["ACDEF", "GHI"]
+
     with (
-        patch("transformers.T5EncoderModel") as mock_model_class,
+        patch("protein_entropy.downloader.is_model_cached", return_value=True),
+        patch("transformers.AutoModelForSeq2SeqLM") as mock_model_class,
         patch("transformers.T5Tokenizer") as mock_tokenizer_class,
     ):
-
-        # Mock tokenizer
         mock_tokenizer = Mock()
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+        # <AA2fold> + residues + </s>
+        mock_tokenizer.return_value = _mock_batch([len(s) + 2 for s in sequences])
+        mock_tokenizer.batch_decode.return_value = ["d p v v d d", "w k k"]
 
-        # Create a proper tensor for attention_mask
-        attention_mask_tensor = torch.ones(1, 10)
-
-        mock_tokenizer.return_value = {
-            "input_ids": torch.randint(0, 100, (1, 10)),
-            "attention_mask": attention_mask_tensor,
-        }
-        mock_tokenizer.get = lambda key: {"attention_mask": attention_mask_tensor}.get(key)
-
-        # Mock model
         mock_model = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
-        mock_model.eval.return_value = None
-        mock_model.to.return_value = mock_model
+        mock_model_class.from_pretrained.return_value.to.return_value = mock_model
+        mock_model.float.return_value = mock_model
+        mock_model.generate.return_value = torch.zeros(2, 7, dtype=torch.long)
 
-        # Mock output
-        mock_output = Mock()
-        mock_output.last_hidden_state = torch.randn(1, 10, 768)
-        mock_model.return_value = mock_output
-
-        # Test encoder
         encoder = ProstT5Encoder(device="cpu")
-
-        # The mocked encoder should work
-        assert encoder.model is not None
-        assert encoder.tokenizer is not None
-
-        # Test encode method
-        sequences = ["ACDEFGHIKLM"]
         encoded = encoder.encode(sequences)
-        assert len(encoded) == 1
-        assert isinstance(encoded[0], str)
-        assert all(c.islower() for c in encoded[0])
+
+    assert encoded == ["DPVVD", "WKK"]
+    processed = mock_tokenizer.call_args.args[0]
+    assert processed == ["<AA2fold> A C D E F", "<AA2fold> G H I"]
+    # The trailing </s> of each sequence is masked out
+    attention_mask = mock_model.generate.call_args.kwargs["attention_mask"]
+    assert attention_mask[0, 6] == 0
+    assert attention_mask[1, 4] == 0
 
 
 @pytest.mark.skipif(not importlib.util.find_spec("torch"), reason="PyTorch not installed")
-def test_modernprost_encoder_mock():
-    """Test ModernProst encoder with mocked model."""
+@pytest.mark.parametrize("multitask", [True, False])
+def test_modernprost_encoder_mock(multitask):
+    """ModernProst argmax class IDs map onto the 3Di alphabet, one per residue."""
+    import torch
+
+    from protein_entropy.encoder import THREE_DI_ALPHABET, ModernProstEncoder
+
+    sequences = ["ACDE", "MU"]
+    lens = [len(s) for s in sequences]
+
+    # Class IDs 0..3 for the first protein, 19 and 5 for the second; padding is junk
+    class_ids = torch.tensor([[0, 1, 2, 3], [19, 5, 7, 7]])
+    logits_3di = torch.nn.functional.one_hot(class_ids, num_classes=20).float()
+
+    with (
+        patch("protein_entropy.downloader.is_model_cached", return_value=True),
+        patch("transformers.AutoConfig") as mock_config_class,
+        patch("transformers.AutoTokenizer") as mock_tokenizer_class,
+        patch("transformers.AutoModel") as mock_model_class,
+    ):
+        mock_config_class.from_pretrained.return_value = Mock(spec=[])
+
+        mock_tokenizer = Mock()
+        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+        mock_tokenizer.return_value = _mock_batch(lens)
+
+        mock_model = Mock()
+        mock_model_class.from_pretrained.return_value.to.return_value = mock_model
+        output = Mock()
+        if multitask:
+            output.logits = {"3di": logits_3di, "12st": torch.zeros(2, 4, 12)}
+        else:
+            output.logits = logits_3di
+        mock_model.return_value = output
+
+        encoder = ModernProstEncoder(device="cpu")
+        encoded = encoder.encode(sequences)
+
+    assert encoded == [
+        THREE_DI_ALPHABET[0:4],
+        THREE_DI_ALPHABET[19] + THREE_DI_ALPHABET[5],
+    ]
+    # Rare residues are replaced by X and no special tokens are added
+    assert mock_tokenizer.call_args.args[0] == ["ACDE", "MX"]
+    assert mock_tokenizer.call_args.kwargs["add_special_tokens"] is False
+
+
+@pytest.mark.skipif(not importlib.util.find_spec("torch"), reason="PyTorch not installed")
+def test_modernprost_rejects_wrong_head_size():
+    """A head that is not 20-way cannot be decoded as 3Di."""
     import torch
 
     from protein_entropy.encoder import ModernProstEncoder
 
-    with (
-        patch("transformers.AutoTokenizer") as mock_tokenizer_class,
-        patch("transformers.AutoModelForMaskedLM") as mock_model_class,
-    ):
+    encoder = ModernProstEncoder.__new__(ModernProstEncoder)
+    encoder.model_name = "test"
+    encoder.device = "cpu"
+    encoder.tokenizer = Mock(return_value=_mock_batch([3]))
+    encoder.model = Mock(return_value=Mock(logits=torch.zeros(1, 3, 33)))
 
-        # Mock tokenizer
-        mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+    with pytest.raises(RuntimeError, match="3Di logits"):
+        encoder.encode(["ACD"])
 
-        # Mock tokenizer methods needed for encoding
-        mock_tokenizer.return_value = {
-            "input_ids": torch.randint(0, 100, (1, 10)),
-            "attention_mask": torch.ones(1, 10),
-        }
-        mock_tokenizer.convert_ids_to_tokens = lambda ids: ["a", "c", "d"] * (len(ids) // 3 + 1)
-        mock_tokenizer.all_special_tokens = []
 
-        # Mock model
-        mock_model = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
-        mock_model.eval.return_value = None
-        mock_model.to.return_value = mock_model
+def test_encode_sequences_unknown_model():
+    """Unknown model names are rejected before any model is loaded."""
+    from protein_entropy.encoder import encode_sequences
 
-        # Mock model output
-        mock_output = Mock()
-        mock_output.logits = torch.randn(1, 10, 100)
-        mock_model.return_value = mock_output
-
-        # Test encoder
-        encoder = ModernProstEncoder(device="cpu")
-
-        # The mocked encoder should work
-        assert encoder.model is not None
-        assert encoder.tokenizer is not None
-
-        # Test encode method
-        sequences = ["ACDEFGHIKLM"]
-        encoded = encoder.encode(sequences)
-        assert len(encoded) == 1
-        assert isinstance(encoded[0], str)
-        assert all(c.islower() for c in encoded[0])
+    with pytest.raises(ValueError, match="Unknown model type"):
+        encode_sequences(["ACD"], model_type="nope", device="cpu")
