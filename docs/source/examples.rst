@@ -57,7 +57,7 @@ Process large files efficiently:
 
 .. code-block:: python
 
-    from protein_entropy.encoder import token_budget_batches, ProstT5Encoder
+    from protein_entropy.encoder import token_budget_batches, ModernProstEncoder
     from protein_entropy.fasta_utils import read_fasta
 
     # Read all sequences
@@ -65,17 +65,19 @@ Process large files efficiently:
     seq_ids, sequences = zip(*sequences_data)
 
     # Create encoder
-    encoder = ProstT5Encoder(device="cuda")
+    encoder = ModernProstEncoder(device="cuda")
 
-    # Batch sequences
+    # Batch sequences: each batch is a list of indices into ``sequences``,
+    # grouped by length so padding stays within the token budget
     batches = token_budget_batches(list(sequences), max_tokens=10000)
 
-    # Process batches
-    all_encoded = []
+    # Process batches, putting results back in input order
+    all_encoded = [None] * len(sequences)
     for i, batch in enumerate(batches):
         print(f"Processing batch {i+1}/{len(batches)}")
-        encoded_batch = encoder.encode(batch)
-        all_encoded.extend(encoded_batch)
+        encoded_batch = encoder.encode([sequences[j] for j in batch])
+        for j, three_di in zip(batch, encoded_batch):
+            all_encoded[j] = three_di
 
 Advanced Examples
 -----------------
