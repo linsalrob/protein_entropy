@@ -189,8 +189,8 @@ output is deterministic and always the same length as the protein.
 
 | Name (`-m`) | Repository | Notes |
 |---|---|---|
-| `modernprost`, `modernprost_base` | gbouras13/modernprost-base | ~1B-parameter multitask model (default) |
-| `modernprost_50m` | gbouras13/modernprost-50M | ~50M-parameter multitask model, much faster |
+| `modernprost`, `modernprost_50m` | gbouras13/modernprost-50M | ~50M-parameter multitask model (default, as in Genome Entropy) |
+| `modernprost_base` | gbouras13/modernprost-base | ~1B-parameter multitask model |
 | `modernprost_base_deprecated` | gbouras13/modernprost-base-deprecated | Legacy 3Di-only model |
 | `modernprost_profiles` | gbouras13/modernprost-profiles-deprecated | Legacy profiles model (renamed upstream) |
 

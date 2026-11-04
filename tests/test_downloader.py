@@ -17,7 +17,7 @@ def test_available_models():
     assert "modernprost_base" in AVAILABLE_MODELS
     assert "modernprost_profiles" in AVAILABLE_MODELS
     assert AVAILABLE_MODELS["prostt5_fp16"] == "Rostlab/ProstT5_fp16"
-    assert AVAILABLE_MODELS["modernprost"] == "gbouras13/modernprost-base"
+    assert AVAILABLE_MODELS["modernprost"] == "gbouras13/modernprost-50M"
     assert AVAILABLE_MODELS["modernprost_base"] == "gbouras13/modernprost-base"
     assert AVAILABLE_MODELS["modernprost_profiles"] == "gbouras13/modernprost-profiles-deprecated"
 

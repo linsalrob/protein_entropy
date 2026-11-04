@@ -28,7 +28,7 @@ Encode protein sequences to 3Di::
 
 Options:
 
-* ``-m, --model``: Model to use (default: modernprost; also modernprost_base, modernprost_50m,
+* ``-m, --model``: Model to use (default: modernprost = modernprost-50M; also modernprost_50m, modernprost_base,
   modernprost_base_deprecated, modernprost_profiles, prostt5, prostt5_fp16)
 * ``--model-path PATH``: Custom model path
 * ``--device``: Device (cuda, mps, cpu)
@@ -197,7 +197,7 @@ Models
 ModernProst (default)
 ~~~~~~~~~~~~~~~~~~~~~
 
-* **Repository**: gbouras13/modernprost-base (``modernprost``); also gbouras13/modernprost-50M,
+* **Repository**: gbouras13/modernprost-50M (``modernprost``); also gbouras13/modernprost-base,
   gbouras13/modernprost-base-deprecated and gbouras13/modernprost-profiles-deprecated
 * **Type**: Residue-level classifier (one 3Di state per residue, deterministic)
 * **Implementation**: Based on phold and genome_entropy

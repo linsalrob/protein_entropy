@@ -69,13 +69,21 @@ def _replace_rare_residues(seq: str) -> str:
     return re.sub(r"[UZOB]", "X", seq.upper())
 
 
-def _load_kwargs(model_name: str) -> dict:
-    """Use only local files when the model is already in the HF cache."""
+def _from_pretrained(loader: Any, model_name: str, **kwargs: Any) -> Any:
+    """
+    Call ``loader.from_pretrained``, using only local files when the model is cached.
+
+    A cache can be partial (e.g. weights present but the remote-code modules
+    missing), so a failed cache-only load is retried with network access.
+    """
     from .downloader import is_model_cached
 
-    is_local = is_model_cached(model_name)
-    logger.debug(f"Model {model_name} cached locally: {is_local}")
-    return {"local_files_only": True} if is_local else {}
+    if is_model_cached(model_name):
+        try:
+            return loader.from_pretrained(model_name, local_files_only=True, **kwargs)
+        except OSError as e:
+            logger.warning(f"Cached copy of {model_name} is incomplete ({e}); retrying online")
+    return loader.from_pretrained(model_name, **kwargs)
 
 
 class ProstT5Encoder:
@@ -111,14 +119,9 @@ class ProstT5Encoder:
             ) from e
 
         logger.info(f"Loading ProstT5 model from {self.model_name}")
-        load_kwargs = _load_kwargs(self.model_name)
 
-        self.tokenizer = T5Tokenizer.from_pretrained(
-            self.model_name, do_lower_case=False, **load_kwargs
-        )
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name, **load_kwargs).to(
-            self.device
-        )
+        self.tokenizer = _from_pretrained(T5Tokenizer, self.model_name, do_lower_case=False)
+        self.model = _from_pretrained(AutoModelForSeq2SeqLM, self.model_name).to(self.device)
 
         # Only GPUs support half precision; use full precision on CPU/MPS
         self.model = self.model.half() if self.device.startswith("cuda") else self.model.float()
@@ -211,11 +214,11 @@ class ModernProstEncoder:
         Initialize ModernProst encoder.
 
         Args:
-            model_path: HF model ID or local path (default: gbouras13/modernprost-base)
+            model_path: HF model ID or local path (default: gbouras13/modernprost-50M)
             device: Device to use
         """
         self.device = device
-        self.model_name = model_path if model_path else "gbouras13/modernprost-base"
+        self.model_name = model_path if model_path else "gbouras13/modernprost-50M"
         self.model = None
         self.tokenizer = None
         self._load_model()
@@ -231,10 +234,8 @@ class ModernProstEncoder:
             ) from e
 
         logger.info(f"Loading ModernProst model from {self.model_name}")
-        load_kwargs = {"trust_remote_code": True, **_load_kwargs(self.model_name)}
-
         try:
-            config = AutoConfig.from_pretrained(self.model_name, **load_kwargs)
+            config = _from_pretrained(AutoConfig, self.model_name, trust_remote_code=True)
 
             # The multitask remote code imports its configuration module without a
             # relative prefix, so its cache directory must be importable.
@@ -246,9 +247,11 @@ class ModernProstEncoder:
             if hasattr(config, "reference_compile"):
                 config.reference_compile = False
 
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, **load_kwargs)
-            self.model = AutoModel.from_pretrained(
-                self.model_name, config=config, **load_kwargs
+            self.tokenizer = _from_pretrained(
+                AutoTokenizer, self.model_name, trust_remote_code=True
+            )
+            self.model = _from_pretrained(
+                AutoModel, self.model_name, config=config, trust_remote_code=True
             ).to(self.device)
         except Exception as e:
             logger.error(f"Failed to load ModernProst model {self.model_name}: {e}")

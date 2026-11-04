@@ -134,7 +134,7 @@ def compare_sequences(
 )
 def test_modernprost_against_example():
     """
-    Test ModernProst encoder against example_modernprost_3di.fasta.
+    Test ModernProst encoder against example_modernprost50m_3di.fasta (modernprost-50M).
     
     Validates that at least 75% of sequences match exactly.
     """
@@ -161,8 +161,10 @@ def test_modernprost_against_example():
     
     aa_sequences = read_fasta(str(aa_fasta))
     
-    # Read expected ModernProst 3Di output
-    expected_fasta = example_data_dir / "example_modernprost_3di.fasta"
+    # Read expected ModernProst 3Di output. example_modernprost50m_3di.fasta was
+    # generated with genome_entropy's ModernProstThreeDiEncoder and
+    # gbouras13/modernprost-50M (the default model in both packages).
+    expected_fasta = example_data_dir / "example_modernprost50m_3di.fasta"
     if not expected_fasta.exists():
         pytest.skip(f"Expected output file not found: {expected_fasta}")
     
@@ -175,14 +177,11 @@ def test_modernprost_against_example():
     print(f"\nEncoding {len(sequences)} sequences with ModernProst...")
     
     try:
-        # example_modernprost_3di.fasta was generated with the original
-        # gbouras13/modernprost-base, which upstream renamed to
-        # modernprost-base-deprecated when the name was reused for the new
-        # multitask model. ModernProst decoding is deterministic, so that model
-        # reproduces the file exactly.
+        # ModernProst decoding is deterministic, so the default model
+        # (modernprost-50M) must reproduce the reference exactly.
         encoded = encode_sequences(
             sequences=sequences,
-            model_type="modernprost_base_deprecated",
+            model_type="modernprost",
             device=device,
             batch_size=10000,  # Reasonable batch size for CPU
         )
@@ -197,7 +196,7 @@ def test_modernprost_against_example():
     matches, total, match_pct = compare_sequences(
         actual=actual_3di,
         expected=expected_3di,
-        model_name="ModernProst-base",
+        model_name="ModernProst-50M",
     )
     
     # Assert at least 75% match

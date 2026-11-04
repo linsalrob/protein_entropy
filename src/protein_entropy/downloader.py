@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 # transformers >= 5.14.1. The original modernprost-profiles repository was renamed
 # to modernprost-profiles-deprecated upstream.
 AVAILABLE_MODELS = {
-    "modernprost": "gbouras13/modernprost-base",
+    "modernprost": "gbouras13/modernprost-50M",
     "modernprost_base": "gbouras13/modernprost-base",
     "modernprost_50m": "gbouras13/modernprost-50M",
     "modernprost_base_deprecated": "gbouras13/modernprost-base-deprecated",

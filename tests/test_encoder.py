@@ -175,3 +175,18 @@ def test_encode_sequences_unknown_model():
 
     with pytest.raises(ValueError, match="Unknown model type"):
         encode_sequences(["ACD"], model_type="nope", device="cpu")
+
+
+def test_from_pretrained_retries_online_when_cache_incomplete():
+    """A partial HF cache (cache-only load fails) falls back to a network load."""
+    from protein_entropy.encoder import _from_pretrained
+
+    loader = Mock()
+    loader.from_pretrained.side_effect = [OSError("missing modeling file"), "loaded"]
+
+    with patch("protein_entropy.downloader.is_model_cached", return_value=True):
+        assert _from_pretrained(loader, "org/model", trust_remote_code=True) == "loaded"
+
+    first, second = loader.from_pretrained.call_args_list
+    assert first.kwargs == {"local_files_only": True, "trust_remote_code": True}
+    assert second.kwargs == {"trust_remote_code": True}
