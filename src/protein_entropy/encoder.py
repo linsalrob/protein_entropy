@@ -73,17 +73,41 @@ def _from_pretrained(loader: Any, model_name: str, **kwargs: Any) -> Any:
     """
     Call ``loader.from_pretrained``, using only local files when the model is cached.
 
+    Both attempts use the cache directory that ``download_model`` and
+    ``is_model_cached`` use, so models downloaded to PROTEIN_ENTROPY_CACHE are found.
     A cache can be partial (e.g. weights present but the remote-code modules
     missing), so a failed cache-only load is retried with network access.
     """
-    from .downloader import is_model_cached
+    from .downloader import get_cache_dir, is_model_cached
 
-    if is_model_cached(model_name):
+    cache_dir = str(get_cache_dir())
+    if is_model_cached(model_name, cache_dir):
         try:
-            return loader.from_pretrained(model_name, local_files_only=True, **kwargs)
+            return loader.from_pretrained(
+                model_name, cache_dir=cache_dir, local_files_only=True, **kwargs
+            )
         except OSError as e:
             logger.warning(f"Cached copy of {model_name} is incomplete ({e}); retrying online")
-    return loader.from_pretrained(model_name, **kwargs)
+    return loader.from_pretrained(model_name, cache_dir=cache_dir, **kwargs)
+
+
+def _trust_remote_code(model_name: str) -> bool:
+    """
+    Only run Hub remote code for the ModernProst repositories we know about.
+
+    A local directory is trusted because the user chose to put it there; any other
+    Hub repository ID is refused rather than silently executing its code.
+    """
+    from .downloader import AVAILABLE_MODELS
+
+    if model_name in AVAILABLE_MODELS.values() or Path(model_name).is_dir():
+        return True
+    raise ValueError(
+        f"Refusing to run remote code from {model_name!r}: ModernProst models need "
+        "trust_remote_code. Use one of the known models "
+        f"({', '.join(sorted(set(AVAILABLE_MODELS.values())))}) or download the "
+        "repository and pass its local directory as --model-path."
+    )
 
 
 class ProstT5Encoder:
@@ -181,8 +205,10 @@ class ProstT5Encoder:
             translations = self.model.generate(
                 ids.input_ids,
                 attention_mask=ids.attention_mask,
-                max_length=max_len,
-                min_length=min_len,
+                # max_length would count the decoder-start token, leaving room for
+                # only len - 1 residues; budget the new tokens (residues + </s>).
+                max_new_tokens=max_len + 1,
+                min_new_tokens=min_len,
                 early_stopping=True,
                 num_return_sequences=1,
                 **gen_kwargs,
@@ -195,6 +221,16 @@ class ProstT5Encoder:
         three_di_sequences = [
             "".join(ts.split()).upper()[: len(seq)] for ts, seq in zip(decoded, cleaned)
         ]
+
+        short = [
+            i for i, (ts, seq) in enumerate(zip(three_di_sequences, cleaned)) if len(ts) < len(seq)
+        ]
+        if short:
+            logger.warning(
+                f"ProstT5 generated fewer 3Di tokens than residues for {len(short)} of "
+                f"{len(cleaned)} sequences in this batch (batch indices {short[:10]}); "
+                "their 3Di entropy covers only the generated tokens"
+            )
 
         logger.debug(f"Encoded {len(three_di_sequences)} sequences")
         return three_di_sequences
@@ -234,8 +270,9 @@ class ModernProstEncoder:
             ) from e
 
         logger.info(f"Loading ModernProst model from {self.model_name}")
+        trust = _trust_remote_code(self.model_name)
         try:
-            config = _from_pretrained(AutoConfig, self.model_name, trust_remote_code=True)
+            config = _from_pretrained(AutoConfig, self.model_name, trust_remote_code=trust)
 
             # The multitask remote code imports its configuration module without a
             # relative prefix, so its cache directory must be importable.
@@ -248,10 +285,10 @@ class ModernProstEncoder:
                 config.reference_compile = False
 
             self.tokenizer = _from_pretrained(
-                AutoTokenizer, self.model_name, trust_remote_code=True
+                AutoTokenizer, self.model_name, trust_remote_code=trust
             )
             self.model = _from_pretrained(
-                AutoModel, self.model_name, config=config, trust_remote_code=True
+                AutoModel, self.model_name, config=config, trust_remote_code=trust
             ).to(self.device)
         except Exception as e:
             logger.error(f"Failed to load ModernProst model {self.model_name}: {e}")

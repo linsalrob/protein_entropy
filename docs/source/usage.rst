@@ -97,9 +97,9 @@ Output Formats
 Lowercase 3Di tokens::
 
     >sequence_id_1
-    mkaahdghaklghealghdalgheklahgdlaghdealghklaghdalghealk
+    MKAAHDGHAKLGHEALGHDALGHEKLAHGDLAGHDEALGHKLAGHDALGHEALK
     >sequence_id_2
-    acdefghiklmnpqrstvwy
+    ACDEFGHIKLMNPQRSTVWY
 
 Entropy TSV Output
 ~~~~~~~~~~~~~~~~~~

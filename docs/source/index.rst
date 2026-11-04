@@ -21,7 +21,7 @@ Overview
 Features
 --------
 
-* 3Di Encoding using ProstT5_fp16 and ModernProst-profiles
+* 3Di Encoding using ModernProst (default: modernprost-50M) and ProstT5_fp16
 * Shannon entropy calculation for protein and 3Di sequences
 * Automatic GPU detection (CUDA/MPS/CPU)
 * GPU memory estimation for optimal batch sizing

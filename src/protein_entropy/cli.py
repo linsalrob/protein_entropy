@@ -114,8 +114,8 @@ def cmd_encode3di(args) -> int:
             capture_locals=False,
             compact=False,     # <-- THIS is the key
         )
-        logger.error("Encoding failed 1:\n%s", "".join(tb.format()))
-        raise
+        logger.error("Encoding failed:\n%s", "".join(tb.format()))
+        return 1
 
     # Write output
     output_data = list(zip(seq_ids, encoded))
@@ -235,8 +235,8 @@ def cmd_run(args) -> int:
             capture_locals=False,
             compact=False,     # <-- THIS is the key
         )
-        logger.error("Encoding failed 2:\n%s", "".join(tb.format()))
-        raise
+        logger.error("Encoding failed:\n%s", "".join(tb.format()))
+        return 1
 
     # Step 3: Calculate entropies
     logger.info("Calculating entropies")

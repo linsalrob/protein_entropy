@@ -96,6 +96,9 @@ def test_prostt5_encoder_mock():
         encoded = encoder.encode(sequences)
 
     assert encoded == ["DPVVD", "WKK"]
+    # The generation budget leaves room for every residue plus </s>
+    assert mock_model.generate.call_args.kwargs["max_new_tokens"] == 6
+    assert mock_model.generate.call_args.kwargs["min_new_tokens"] == 3
     processed = mock_tokenizer.call_args.args[0]
     assert processed == ["<AA2fold> A C D E F", "<AA2fold> G H I"]
     # The trailing </s> of each sequence is masked out
@@ -188,5 +191,32 @@ def test_from_pretrained_retries_online_when_cache_incomplete():
         assert _from_pretrained(loader, "org/model", trust_remote_code=True) == "loaded"
 
     first, second = loader.from_pretrained.call_args_list
-    assert first.kwargs == {"local_files_only": True, "trust_remote_code": True}
-    assert second.kwargs == {"trust_remote_code": True}
+    assert first.kwargs["local_files_only"] is True
+    assert "local_files_only" not in second.kwargs
+    assert first.kwargs["trust_remote_code"] and second.kwargs["trust_remote_code"]
+
+
+def test_from_pretrained_uses_configured_cache_dir(monkeypatch, tmp_path):
+    """Models downloaded to PROTEIN_ENTROPY_CACHE are loaded from there."""
+    from protein_entropy.encoder import _from_pretrained
+
+    monkeypatch.setenv("PROTEIN_ENTROPY_CACHE", str(tmp_path))
+    snapshot = tmp_path / "models--org--model" / "snapshots" / "abc"
+    snapshot.mkdir(parents=True)
+    (snapshot / "config.json").write_text("{}")
+
+    loader = Mock()
+    _from_pretrained(loader, "org/model")
+    assert loader.from_pretrained.call_args.kwargs == {
+        "cache_dir": str(tmp_path),
+        "local_files_only": True,
+    }
+
+
+def test_modernprost_refuses_unknown_remote_code():
+    """trust_remote_code is only enabled for known ModernProst repos or local dirs."""
+    from protein_entropy.encoder import _trust_remote_code
+
+    assert _trust_remote_code("gbouras13/modernprost-50M")
+    with pytest.raises(ValueError, match="Refusing to run remote code"):
+        _trust_remote_code("someone/untrusted-model")

@@ -36,9 +36,9 @@ Successfully created a complete Python package for encoding proteins using trans
 
 #### 3Di Encoding (`encoder.py`)
 - **ProstT5_fp16** implementation
-- **ModernProst-profiles** implementation (adapted from George's phold code)
+- **ModernProst** implementation (default modernprost-50M; adapted from phold and genome_entropy)
 - Token budget batching for GPU optimization
-- Outputs lowercase 3Di tokens
+- Outputs uppercase 3Di tokens (Foldseek alphabet)
 
 #### GPU Estimator (`gpu_estimator.py`)
 - Estimates optimal sequence length for GPU
@@ -126,12 +126,12 @@ Test coverage includes:
 
 ### Input/Output Formats
 - **Input**: FASTA files (uppercase conversion automatic)
-- **3Di Output**: FASTA files with lowercase tokens
+- **3Di Output**: FASTA files with uppercase 3Di tokens
 - **Entropy Output**: TSV files with columns: sequence_id, aa_entropy, 3di_entropy
 
 ### Model Support
 - ProstT5_fp16 (Rostlab/ProstT5_fp16)
-- ModernProst-profiles (gbouras13/modernprost-profiles)
+- ModernProst (gbouras13/modernprost-50M by default; also modernprost-base and legacy -deprecated models)
 - Both accessible via HuggingFace Hub
 
 ## Files Created

@@ -157,3 +157,18 @@ def test_estimate_command_parsing():
     assert args.end == 10000
     assert args.step == 1000
     assert args.trials == 5
+
+
+def test_encode3di_failure_returns_nonzero(tmp_path):
+    """A failed encode is reported with a non-zero exit code, not a raised exception."""
+    from unittest.mock import patch
+
+    from protein_entropy.cli import cmd_encode3di, create_parser
+
+    fasta = tmp_path / "in.fasta"
+    fasta.write_text(">a\nACD\n")
+    args = create_parser().parse_args(
+        ["encode3di", "-i", str(fasta), "-o", str(tmp_path / "out.fasta")]
+    )
+    with patch("protein_entropy.encoder.encode_sequences", side_effect=RuntimeError("boom")):
+        assert cmd_encode3di(args) == 1

@@ -41,7 +41,11 @@ def get_cache_dir() -> Path:
     if cache_dir:
         return Path(cache_dir)
 
-    # Default to HuggingFace cache
+    # Otherwise follow huggingface_hub's own resolution order
+    hf_hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hf_hub_cache:
+        return Path(hf_hub_cache)
+
     hf_home = os.environ.get("HF_HOME")
     if hf_home:
         return Path(hf_home) / "hub"

@@ -137,12 +137,12 @@ Sequences are automatically converted to uppercase before encoding.
 
 ### Output Format
 
-**3Di FASTA output** (lowercase 3Di tokens):
+**3Di FASTA output** (uppercase 3Di tokens, the Foldseek alphabet):
 ```
 >sequence1
-mkaahdghaklghealghdalgheklahgdlaghdealghklaghdalghealk
+MKAAHDGHAKLGHEALGHDALGHEKLAHGDLAGHDEALGHKLAGHDALGHEALK
 >sequence2
-acdefghiklmnpqrstvwy
+ACDEFGHIKLMNPQRSTVWY
 ```
 
 **Entropy TSV output**:

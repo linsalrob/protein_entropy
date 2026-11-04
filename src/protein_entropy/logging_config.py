@@ -1,4 +1,4 @@
-"""Centralized logging configuration for genome_entropy.
+"""Centralized logging configuration for protein_entropy.
 
 This module provides a single source for configuring logging throughout the application.
 It supports:
@@ -48,7 +48,6 @@ def configure_logging(
     global _configured, _log_file, _log_level
 
     # Convert string level to int if needed
-    ori_level = level
     if isinstance(level, str):
         level = getattr(logging, level.upper(), logging.INFO)
 
