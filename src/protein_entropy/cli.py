@@ -381,7 +381,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--batch-size",
         type=int,
         default=5000,
-        help="Maximum tokens per batch (default: 5000)",
+        help="Maximum padded tokens per batch, i.e. sequences x longest length (default: 5000)",
     )
     parser_encode.set_defaults(func=cmd_encode3di)
 
@@ -456,7 +456,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--batch-size",
         type=int,
         default=5000,
-        help="Maximum tokens per batch (default: 5000)",
+        help="Maximum padded tokens per batch, i.e. sequences x longest length (default: 5000)",
     )
     parser_run.set_defaults(func=cmd_run)
 

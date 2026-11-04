@@ -32,7 +32,7 @@ Options:
   modernprost_base_deprecated, modernprost_profiles, prostt5, prostt5_fp16)
 * ``--model-path PATH``: Custom model path
 * ``--device``: Device (cuda, mps, cpu)
-* ``--batch-size N``: Maximum tokens per batch
+* ``--batch-size N``: Maximum padded tokens per batch (number of sequences x longest sequence)
 
 Entropy Command
 ~~~~~~~~~~~~~~~

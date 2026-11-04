@@ -9,20 +9,39 @@ import pytest
 
 
 def test_token_budget_batches():
-    """Test token budget batching."""
+    """Every sequence is batched once and padded batches respect the budget."""
     from protein_entropy.encoder import token_budget_batches
 
     sequences = ["A" * 100, "B" * 200, "C" * 150, "D" * 50]
-
-    # With max_tokens=250, batches should be: [100], [200], [150, 50]
     batches = token_budget_batches(sequences, max_tokens=250)
 
-    assert len(batches) > 0
-
-    # Check that no batch exceeds the token limit
+    assert sorted(i for batch in batches for i in batch) == [0, 1, 2, 3]
     for batch in batches:
-        total_tokens = sum(len(seq) for seq in batch)
-        assert total_tokens <= 250 or len(batch) == 1  # Single sequence might exceed
+        padded = len(batch) * max(len(sequences[i]) for i in batch)
+        assert padded <= 250
+
+
+def test_token_budget_batches_counts_padding():
+    """One long protein plus many short ones must not share a padded batch."""
+    from protein_entropy.encoder import token_budget_batches
+
+    sequences = ["L" * 2500] + ["S" * 10] * 250
+    batches = token_budget_batches(sequences, max_tokens=5000)
+
+    assert sorted(i for batch in batches for i in batch) == list(range(251))
+    for batch in batches:
+        assert len(batch) * max(len(sequences[i]) for i in batch) <= 5000
+
+
+def test_token_budget_batches_oversized_alone():
+    """A sequence longer than the budget is encoded on its own."""
+    from protein_entropy.encoder import token_budget_batches
+
+    sequences = ["S" * 10, "L" * 600, "S" * 10]
+    batches = token_budget_batches(sequences, max_tokens=500)
+
+    assert [1] in batches
+    assert sorted(i for batch in batches for i in batch) == [0, 1, 2]
 
 
 def test_token_budget_batches_empty():
@@ -31,6 +50,24 @@ def test_token_budget_batches_empty():
 
     batches = token_budget_batches([])
     assert batches == []
+
+
+def test_encode_sequences_restores_input_order():
+    """Length-sorted batching still returns results in input order."""
+    from protein_entropy.encoder import encode_sequences
+
+    class Echo:
+        def __init__(self, model_path=None, device="cpu"):
+            pass
+
+        def encode(self, seqs):
+            return [s.lower() for s in seqs]
+
+    sequences = ["AAAA", "C", "DDD", "EE"]
+    with patch("protein_entropy.encoder.ModernProstEncoder", Echo):
+        encoded = encode_sequences(sequences, device="cpu", batch_size=6)
+
+    assert encoded == ["aaaa", "c", "ddd", "ee"]
 
 
 @pytest.mark.integration

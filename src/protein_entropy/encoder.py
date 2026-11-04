@@ -26,41 +26,62 @@ THREE_DI_ALPHABET_SIZE = 20
 def token_budget_batches(
     sequences: List[str],
     max_tokens: int = 5000,
-) -> List[List[str]]:
+) -> List[List[int]]:
     """
-    Batch sequences based on token budget.
+    Batch sequences so that each padded batch stays within a token budget.
 
-    Groups sequences into batches where the total number of tokens
-    (amino acids) doesn't exceed max_tokens.
+    Tokenizers pad every sequence to the longest in the batch, so a batch costs
+    ``len(batch) * max_len`` positions, not the sum of its lengths. Following
+    genome_entropy, sequences are sorted by length; each batch takes the longest
+    remaining sequences first, then fills leftover budget with the shortest.
+    A sequence longer than the budget is put in a batch on its own.
 
     Args:
         sequences: List of protein sequences
-        max_tokens: Maximum tokens per batch
+        max_tokens: Maximum padded tokens (batch size x longest sequence) per batch
 
     Returns:
-        List of sequence batches
+        Batches of indices into ``sequences``
     """
-    batches = []
-    current_batch = []
-    current_tokens = 0
+    if max_tokens <= 0:
+        raise ValueError("max_tokens must be > 0")
 
-    for seq in sequences:
-        seq_len = len(seq)
+    order = sorted(range(len(sequences)), key=lambda i: len(sequences[i]))
+    batches: List[List[int]] = []
+    start, end = 0, len(order) - 1
 
-        # If adding this sequence would exceed budget, start new batch
-        if current_tokens + seq_len > max_tokens and current_batch:
-            batches.append(current_batch)
-            current_batch = []
-            current_tokens = 0
+    while start <= end:
+        batch: List[int] = []
+        batch_max = 0
 
-        current_batch.append(seq)
-        current_tokens += seq_len
+        # Longest remaining sequences first
+        while start <= end:
+            length = len(sequences[order[end]])
+            if length > max_tokens:
+                if batch:
+                    break
+                batch.append(order[end])
+                batch_max = length
+                end -= 1
+                break
+            if (len(batch) + 1) * max(batch_max, length) > max_tokens:
+                break
+            batch.append(order[end])
+            batch_max = max(batch_max, length)
+            end -= 1
 
-    # Add remaining sequences
-    if current_batch:
-        batches.append(current_batch)
+        # Fill the remaining budget with the shortest sequences
+        while start <= end and batch_max <= max_tokens:
+            length = len(sequences[order[start]])
+            if (len(batch) + 1) * max(batch_max, length) > max_tokens:
+                break
+            batch.append(order[start])
+            batch_max = max(batch_max, length)
+            start += 1
 
-    logger.debug(f"Created {len(batches)} batches with max {max_tokens} tokens")
+        batches.append(batch)
+
+    logger.debug(f"Created {len(batches)} batches with max {max_tokens} padded tokens")
     return batches
 
 
@@ -415,14 +436,15 @@ def encode_sequences(
     else:
         encoder = ModernProstEncoder(model_path=model_name, device=device)
 
-    # Batch sequences
+    # Batch by padded size, then put results back in input order
     batches = token_budget_batches(sequences, max_tokens=batch_size)
 
-    # Encode batches
-    all_encoded = []
+    all_encoded: List[str] = [""] * len(sequences)
     for i, batch in enumerate(batches):
-        batchlen = sum(len(s) for s in batch)
-        logger.info(f"Encoding batch {i+1}/{len(batches)} [length: {batchlen}]")
-        all_encoded.extend(encoder.encode(batch))
+        batch_seqs = [sequences[j] for j in batch]
+        padded = len(batch) * max(len(s) for s in batch_seqs)
+        logger.info(f"Encoding batch {i+1}/{len(batches)} [padded tokens: {padded}]")
+        for j, three_di in zip(batch, encoder.encode(batch_seqs)):
+            all_encoded[j] = three_di
 
     return all_encoded
