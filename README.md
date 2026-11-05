@@ -1,4 +1,267 @@
 # protein_entropy
-Encode proteins using transformers and calculate their entropy
 
-Please note: The code in this repository does not work as advertised. Instead, you should look at the code in [Genome Entropy](https://github.com/linsalrob/genome_entropy) which is the sister repository, and is working properly.
+[![CI](https://github.com/linsalrob/protein_entropy/workflows/CI/badge.svg)](https://github.com/linsalrob/protein_entropy/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Encode proteins using transformers and calculate their entropy.
+
+The 3Di encoding here follows [Genome Entropy](https://github.com/linsalrob/genome_entropy), the sister repository, which runs the same models over whole genomes.
+
+`protein_entropy` is a Python package that converts protein sequences into 3Di structural token sequences using state-of-the-art transformer models (ProstT5 and ModernProst), and calculates Shannon entropy for both original and encoded sequences.
+
+## Features
+
+- **3Di Encoding**: Convert protein sequences to 3Di structural tokens using:
+  - ModernProst (gbouras13), the default
+  - ProstT5_fp16 (Rostlab)
+- **Entropy Calculation**: Compute Shannon entropy for protein and 3Di sequences
+- **GPU Optimization**: Automatic device detection (CUDA/MPS/CPU) and batch size estimation
+- **Flexible CLI**: Easy-to-use command-line interface with multiple subcommands
+- **Production Ready**: Comprehensive testing, logging, and error handling
+
+## Installation
+
+### Basic Installation
+
+```bash
+pip install protein_entropy
+```
+
+### With PyTorch (for CUDA/GPU support)
+
+```bash
+# For CUDA 11.8
+pip install protein_entropy
+pip install torch --index-url https://download.pytorch.org/whl/cu118
+
+# For CUDA 12.1
+pip install protein_entropy
+pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+# For CPU only
+pip install protein_entropy torch
+```
+
+### Development Installation
+
+```bash
+git clone https://github.com/linsalrob/protein_entropy.git
+cd protein_entropy
+pip install -e ".[dev]"
+```
+
+## Quick Start
+
+### 1. Download Models
+
+```bash
+# Download the default ModernProst model
+protein_entropy download modernprost
+
+# Download ProstT5_fp16 model
+protein_entropy download prostt5_fp16
+
+# Download all models
+protein_entropy download all
+
+# List available and downloaded models
+protein_entropy download prostt5_fp16 --list
+```
+
+### 2. Encode Proteins to 3Di
+
+```bash
+protein_entropy encode3di \
+  -i proteins.fasta \
+  -o encoded_3di.fasta \
+  -m modernprost \
+  --batch-size 5000
+```
+
+### 3. Calculate Entropy
+
+```bash
+protein_entropy entropy \
+  -p proteins.fasta \
+  -t encoded_3di.fasta \
+  -o entropy_results.tsv
+```
+
+### 4. Run Complete Pipeline
+
+```bash
+protein_entropy run \
+  -i proteins.fasta \
+  -o results \
+  -m modernprost \
+  --batch-size 5000
+```
+
+This will generate:
+- `results_3di.fasta`: 3Di encoded sequences
+- `results_entropy.tsv`: Entropy values for each sequence
+
+### 5. Estimate Optimal Batch Size
+
+```bash
+protein_entropy estimate \
+  -m modernprost \
+  --start 5000 \
+  --end 50000 \
+  --step 5000 \
+  --trials 3
+```
+
+## Usage
+
+### Command Line Options
+
+All commands support:
+- `--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}`: Set logging level
+- `--log-file FILE`: Write logs to file instead of stdout
+- `--version`: Show version and exit
+
+### Input Format
+
+Protein sequences should be provided in FASTA format:
+
+```
+>sequence1
+MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEK
+>sequence2
+ACDEFGHIKLMNPQRSTVWY
+```
+
+Sequences are automatically converted to uppercase before encoding.
+
+### Output Format
+
+**3Di FASTA output** (uppercase 3Di tokens, the Foldseek alphabet):
+```
+>sequence1
+MKAAHDGHAKLGHEALGHDALGHEKLAHGDLAGHDEALGHKLAGHDALGHEALK
+>sequence2
+ACDEFGHIKLMNPQRSTVWY
+```
+
+**Entropy TSV output**:
+```
+sequence_id    aa_entropy    3di_entropy
+sequence1      3.456789      2.345678
+sequence2      4.321987      3.210987
+```
+
+## Python API
+
+```python
+from protein_entropy.encoder import encode_sequences
+from protein_entropy.entropy import calculate_entropy
+from protein_entropy.fasta_utils import read_fasta, write_fasta, write_tsv
+
+# Read sequences
+sequences_data = list(read_fasta("proteins.fasta"))
+seq_ids, sequences = zip(*sequences_data)
+
+# Encode to 3Di
+encoded = encode_sequences(
+    sequences=list(sequences),
+    model_type="modernprost",
+    device="cuda",
+    batch_size=5000,
+)
+
+# Calculate entropies
+protein_entropies = [calculate_entropy(seq) for seq in sequences]
+three_di_entropies = [calculate_entropy(seq) for seq in encoded]
+
+# Write outputs
+write_fasta("output_3di.fasta", list(zip(seq_ids, encoded)))
+write_tsv("entropy.tsv", list(zip(seq_ids, protein_entropies, three_di_entropies)))
+```
+
+## Models
+
+### ModernProst (default)
+
+ModernProst predicts one 3Di state per residue from a classifier head, so the
+output is deterministic and always the same length as the protein.
+
+| Name (`-m`) | Repository | Notes |
+|---|---|---|
+| `modernprost`, `modernprost_50m` | gbouras13/modernprost-50M | ~50M-parameter multitask model (default, as in Genome Entropy) |
+| `modernprost_base` | gbouras13/modernprost-base | ~1B-parameter multitask model |
+| `modernprost_base_deprecated` | gbouras13/modernprost-base-deprecated | Legacy 3Di-only model |
+| `modernprost_profiles` | gbouras13/modernprost-profiles-deprecated | Legacy profiles model (renamed upstream) |
+
+The multitask models need `transformers>=5.14.1`. They also predict 12-state
+tokens, which `protein_entropy` does not use.
+Implementation follows [phold](https://github.com/gbouras13/phold) and
+[Genome Entropy](https://github.com/linsalrob/genome_entropy).
+
+### ProstT5_fp16
+
+- **Repository**: Rostlab/ProstT5_fp16 (`-m prostt5` or `-m prostt5_fp16`)
+- **Description**: T5 sequence-to-sequence model that translates amino acids to 3Di.
+  It uses sampled generation (as on the model card), so repeated runs can differ.
+- **Reference**: [ProstT5 Paper](https://doi.org/10.1101/2023.07.23.550085)
+
+## GPU Support
+
+The package automatically detects the best available device:
+1. CUDA (NVIDIA GPUs)
+2. MPS (Apple Silicon)
+3. CPU (fallback)
+
+For optimal performance on GPUs, use the `estimate` command to find the maximum batch size for your hardware.
+
+## Testing
+
+```bash
+# Run basic tests (excludes integration tests)
+pytest
+
+# Run all tests including integration tests
+pytest --run-integration
+
+# Or set environment variable
+RUN_INTEGRATION=1 pytest
+
+# Run with coverage
+pytest --cov=protein_entropy --cov-report=html
+```
+
+## Documentation
+
+Full documentation is available at [Read the Docs](https://protein-entropy.readthedocs.io).
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Citation
+
+If you use this software, please cite:
+
+```bibtex
+@software{protein_entropy,
+  author = {Edwards, Rob},
+  title = {protein_entropy: Encode proteins and calculate entropy},
+  year = {2024-2026},
+  url = {https://github.com/linsalrob/protein_entropy}
+}
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- ProstT5 model by Rostlab
+- ModernProst implementation by George Bouras
+- 3Di structural alphabet from Foldseek
+
+## Support
+
+For questions and issues, please use the [GitHub issue tracker](https://github.com/linsalrob/protein_entropy/issues).
